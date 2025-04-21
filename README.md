@@ -58,9 +58,10 @@ The podcast generation process follows these steps:
 The following are examples of podcasts potentially created using this workflow:
 
 1.  **Mabinogi Reforging Guide:**  (https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
-   [![Dundell's Cyberspace Podcast](https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg)](https://www.youtube.com/watch?v=gHvIbpv95iQ&t "Dundell's Cyberspace Podcast- Mabinogi Reforging system talk")
+[![Dundell's Cyberspace Podcast- Mabinogi Reforging system talk](https://i.ytimg.com/vi/gHvIbpv95iQ/hqdefault.jpg)](https://www.youtube.com/watch?v=gHvIbpv95iQ&t "Dundell's Cyberspace Podcast- Mabinogi Reforging system talk")
 3.  **Evaluating LLMs for Code Generation:** (https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h)
-    [![Dundell's Cyberspace Podcast]([[[https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg](https://i.ytimg.com/vi/gHvIbpv95iQ/hqdefault.jpg](https://i.ytimg.com/vi/9pTBPMgRlBU/hqdefault.jpg)](https://i.ytimg.com/vi/gHvIbpv95iQ/hqdefault.jpg)](https://www.youtube.com/watch?v=9pTBPMgRlBU "Dundell's Cyberspace Podcast - Evaluating LLMs for Code Generation")
+[![Dundell's Cyberspace Podcast- Mabinogi Reforging system talk](https://i.ytimg.com/vi/9pTBPMgRlBU/hqdefault.jpg)](https://www.youtube.com/watch?v=9pTBPMgRlBU&t "Dundell's Cyberspace Podcast - Evaluating LLMs for Code Generation")
+
 
 
 ## Dependencies & Credits
