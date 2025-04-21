@@ -57,8 +57,11 @@ The podcast generation process follows these steps:
 
 The following are examples of podcasts potentially created using this workflow:
 
-1.  **Mabinogi Reforging Guide:** A video explaining free-to-play methods for obtaining precise reforges in the game Mabinogi, covering sources like Finny Gems, Dungeon Vouchers, Commerce, and Adventure Seals, as well as Journeyman Reforges. (Based on summary for `https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH`)
-2.  **Evaluating LLMs for Code Generation:** A discussion on how Large Language Models are assessed for coding tasks, touching on accuracy, speed, hallucinations, training techniques (Q LoRA), benchmarks, ethical considerations (EU AI Act), and the importance of human oversight. (Based on summary for `https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h`)
+1.  **Mabinogi Reforging Guide:**  (Based on summary for https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
+   [![Example Podcast Video](https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg)](https://www.youtube.com/watch?v=gHvIbpv95iQ&t "Dundell's Cyberspace Podcast- Mabinogi Reforging system talk")
+3.  **Evaluating LLMs for Code Generation:** Based on summary for https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h
+    [![Example Podcast Video](https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg)](https://www.youtube.com/watch?v=9pTBPMgRlBU "Dundell's Cyberspace Podcast - Evaluating LLMs for Code Generation")
+
 
 ## Dependencies & Credits
 
