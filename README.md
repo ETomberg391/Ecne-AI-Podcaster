@@ -55,7 +55,7 @@ The podcast generation process follows these steps:
 
 ## Examples
 
-The following are examples of podcasts potentially created using this workflow:
+The following are examples of podcasts created using this workflow:
 
 1.  **Mabinogi Reforging Guide:**  (https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
 [![Dundell's Cyberspace Podcast- Mabinogi Reforging system talk](https://i.ytimg.com/vi/gHvIbpv95iQ/hqdefault.jpg)](https://www.youtube.com/watch?v=gHvIbpv95iQ&t "Dundell's Cyberspace Podcast- Mabinogi Reforging system talk")
@@ -70,7 +70,8 @@ This project relies on several external tools, libraries, and services:
 
 * **Core Tools:** Python 3, pip, Git, Docker, Docker Compose, FFmpeg
 * **TTS Backend:**
-    * Orpheus TTS / Orpheus-FastAPI (by Lex-au)
+    * Orpheus TTS (by Canopy Labs)
+    * Orpheus-FastAPI (by Lex-au)
     * Llama.cpp (implied)
     * Hugging Face (for model download)
 * **Python Libraries (Primary):**
