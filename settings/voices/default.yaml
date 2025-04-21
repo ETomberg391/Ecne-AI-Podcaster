@@ -1,0 +1,9 @@
+# settings/voices/default.yaml
+gain_factor: 1.0
+trim_end_ms: 0
+nr_level: 0
+compress_thresh: 1.0 # Threshold effectively disables compression (1.0 = 0dBFS)
+compress_ratio: 1    # Ratio 1 means no compression
+norm_frame_len: 10   # Lowest default value used
+norm_gauss_size: 3   # Lowest default value used (must be odd)
+deesser_freq: 3000   # Lowest allowed frequency

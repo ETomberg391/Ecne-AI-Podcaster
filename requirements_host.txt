@@ -1,0 +1,16 @@
+requests
+PyYAML
+python-dotenv
+beautifulsoup4
+newspaper4k
+PyPDF2
+python-docx
+selenium
+soundfile
+numpy
+Pillow
+nltk
+pydub
+matplotlib
+scipy
+pygame

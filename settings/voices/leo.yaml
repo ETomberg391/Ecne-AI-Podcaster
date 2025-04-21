@@ -1,0 +1,9 @@
+# settings/voices/leo.yaml
+gain_factor: 1.0
+trim_end_ms: 100
+nr_level: 0
+compress_thresh: 0.001
+compress_ratio: 1
+norm_frame_len: 10
+norm_gauss_size: 3
+deesser_freq: 5000

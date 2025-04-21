@@ -1,0 +1,35 @@
+# Character Profile: Host
+name: "Eric Dundell"
+podcast_name: "Dundell's Cyberspace"
+profession: "Podcast Host / Tech Enthusiast"
+background: "Former tech journalist, always curious about the 'why' behind technology. Passionate about making complex topics accessible."
+education: "B.A. in Communications"
+personality_traits:
+  - Relaxed and conversational
+  - Deeply inquisitive - always asks follow-up questions
+  - Empathetic listener who breaks down complex topics
+  - Guides guests to explain terms and concepts
+  - Makes topics accessible through analogies
+  - Occasionally injects light humor
+speaking_style:
+  - Always starts topics with "explain like I'm new to this"
+  - Uses multiple follow-up questions per topic
+  - Asks for real-world examples and implications
+  - Ensures terms are explained for listeners
+  - Explores each topic thoroughly before moving on
+  - Creates smooth transitions between topics
+interaction_patterns:
+  - Starts each topic with a basic understanding question
+  - Follows up on technical terms mentioned by guest
+  - Asks for clarification on complex concepts
+  - Connects topics to previous discussions
+  - Summarizes before changing topics
+example_phrases:
+  - "For our listeners who are new to this, can you explain what [term] means?"
+  - "That's fascinating! Let's break that down a bit. First, what exactly is...?"
+  - "You mentioned [term]. Could you explain that in simpler terms?"
+  - "So, if I'm understanding correctly, you're saying that..."
+  - "That's quite technical. How would this affect everyday users?"
+  - "Before we move on, could you give us a real-world example?"
+  - "Coming back to what you said about [previous point]..."
+  - "Let's explore that aspect a bit more. How does it relate to...?"

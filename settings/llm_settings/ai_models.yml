@@ -1,0 +1,18 @@
+# Model configurations for the AI Podcast Generator
+# Define different models and their parameters for /chat/completions API calls.
+
+# Configuration for the default model accessed via the current endpoint
+default_model:
+  api_endpoint: ""
+  api_key: "sk1-example"
+  model: "QwQ-32B_Example" # Example: Replace with the actual default model if known
+  temperature: 0.7
+
+# Configuration for Gemini 2.0 Flash (Experimental)
+gemini_flash:
+  api_endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/"
+  api_key: "Somethingsomethinggminigapikey"
+  model: "gemini-2.0-flash-001"
+  temperature: 0.8
+  max_tokens: 8192
+  # top_p: 0.95 # Optional parameter
