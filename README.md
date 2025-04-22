@@ -44,7 +44,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
     *   Clones `Orpheus-FastAPI` repository.
     *   Sets up Python virtual environment for host scripts.
     *   Configures Docker Compose (`docker-compose-gpu.yml`) for the TTS backend (Requires NVIDIA Container Toolkit for GPU).
-*   **`script_builder.py` (`script_builder.py`)**:
+*   **`script_builder.py`**:
     *   Orchestrates research and script writing.
     *   **Input:** Topic, keywords, guidance, optional URLs/local files (`txt`, `pdf`, `docx`). `--no-search` requires provided sources.
     *   **Research:** Uses `newspaper4k`, `BeautifulSoup4`, `selenium` for scraping; `PyPDF2`, `python-docx` for local files. Optional Google/Brave Search API integration (requires `.env` keys).
