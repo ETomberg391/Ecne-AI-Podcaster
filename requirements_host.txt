@@ -14,3 +14,4 @@ pydub
 matplotlib
 scipy
 pygame
+lxml_html_clean
