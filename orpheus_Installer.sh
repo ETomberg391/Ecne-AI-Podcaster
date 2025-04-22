@@ -7,6 +7,9 @@ set -u
 # Pipelines return the exit status of the last command to exit non-zero.
 set -o pipefail
 
+# Store the original directory where the script is being run from
+ORIGINAL_DIR=$(pwd)
+
 # --- Configuration ---
 DEFAULT_INSTALL_DIR="orpheus_tts_setup"
 DEFAULT_LLAMA_SERVER_PORT="8080"
@@ -70,12 +73,12 @@ fi
 print_info "Core prerequisites met."
 
 # --- Host Python Script Prerequisites ---
-print_info "Checking prerequisites for host Python scripts (mainv3.py, orpheus_ttsv3.py)..."
+print_info "Checking prerequisites for host Python scripts (script_builder.py, orpheus_tts.py)..."
 check_command "${PYTHON_CMD}" "Please install Python 3 (e.g., sudo apt install python3)"
 check_command "${PIP_CMD}" "Please install pip for Python 3 (e.g., sudo apt install python3-pip)"
 check_command "ffmpeg" "Please install ffmpeg (e.g., sudo apt install ffmpeg)"
 
-print_warning "Host scripts (mainv3.py, orpheus_ttsv3.py) may require additional system libraries."
+print_warning "Host scripts (script_builder.py, orpheus_tts.py) may require additional system libraries."
 print_warning "Please ensure the following are installed if you encounter errors running those scripts:"
 print_warning "  - Tkinter: sudo apt install python3-tk (or equivalent)"
 print_warning "  - libsndfile: sudo apt install libsndfile1 (or equivalent)"
@@ -286,70 +289,126 @@ if [ -d ".git" ]; then
     git reset --hard HEAD > /dev/null 2>&1
     git pull origin main > /dev/null 2>&1
     if [ $? -ne 0 ]; then
-      print_warning "Git pull failed for Orpheus-FastAPI. Proceeding with existing files."
+        print_warning "Git pull failed for Orpheus-FastAPI. Proceeding with existing files."
     else
-      print_info "Successfully pulled latest changes for Orpheus-FastAPI."
+        print_info "Successfully pulled latest changes for Orpheus-FastAPI."
     fi
     set -e
+elif [ -z "$(ls -A .)" ]; then
+    # Directory is empty, safe to clone
+    print_info "Cloning Orpheus-FastAPI repository..."
+    git clone https://github.com/Lex-au/Orpheus-FastAPI.git .
 else
-    # Directory exists, but it's not a git repository.
-    # Check if it's empty before attempting to clone.
-    if [ -z "$(ls -A .)" ]; then
-        # Directory is empty, safe to clone
-        print_info "Cloning Orpheus-FastAPI repository..."
-        git clone https://github.com/Lex-au/Orpheus-FastAPI.git .
-    else
+    # Directory is not empty and not a git repo, assume files are present
+    print_warning "Directory '.' exists and is not empty, but not a git repository. Skipping clone and assuming files are present."
+    print_warning "The docker compose command will use the existing files in this directory."
+fi
+print_info "Orpheus-FastAPI source code is ready."
 
-# --- Setup Host Python Environment (for mainv3.py, orpheus_ttsv3.py) ---
-print_info "Setting up Python virtual environment for host scripts (mainv3.py, orpheus_ttsv3.py)..."
-HOST_VENV_DIR="host_venv"
-cd "$INSTALL_DIR_ABS" # Ensure we are in the base installation directory
-
-if [ ! -d "$HOST_VENV_DIR" ]; then
-    print_info "Creating Python virtual environment '$HOST_VENV_DIR' for host scripts..."
-    $PYTHON_CMD -m venv "$HOST_VENV_DIR"
+# --- .env Configuration (Orpheus-FastAPI) ---
+if [ ! -f ".env" ]; then
+print_info "Copying .env.example to .env..."
+cp .env.example .env
 else
-    print_warning "Host virtual environment '$HOST_VENV_DIR' already exists. Skipping creation."
-    print_warning "If you encounter issues, remove the '$HOST_VENV_DIR' directory and re-run the script."
+print_warning ".env file already exists. Skipping copy from .env.example."
+print_warning "Please review your existing Orpheus-FastAPI/.env file manually: $FASTAPI_DIR/.env"
+fi
+cd "$ORIGINAL_DIR" # Go back to the directory where the script was run from
+
+# --- .env Configuration (Root Directory) ---
+if [ ! -f ".env" ]; then
+    print_info "Copying env.example to .env..."
+    cp env.example .env
+else
+    print_warning ".env file already exists in root directory. Skipping copy from env.example."
+fi
+
+# --- Setup Host Python Environment (for script_builder.py, orpheus_tts.py) ---
+print_info "Setting up Python virtual environment for host scripts (script_builder.py, orpheus_tts.py)..."
+
+if [ ! -d "host_venv" ]; then
+    print_info "Creating Python virtual environment 'host_venv' for host scripts..."
+    $PYTHON_CMD -m venv "host_venv"
+else
+    print_warning "Host virtual environment 'host_venv' already exists. Skipping creation."
+    print_warning "If you encounter issues, remove the 'host_venv' directory and re-run the script."
 fi
 
 print_info "Activating host virtual environment and installing dependencies from requirements_host.txt..."
-source "$HOST_VENV_DIR/bin/activate"
+source "./host_venv/bin/activate"
 
 # Upgrade pip within the venv
 print_info "Upgrading pip in host venv..."
 $PIP_CMD install --upgrade pip
 
 # Install dependencies
-if [ -f "../requirements_host.txt" ]; then # Check relative path from INSTALL_DIR
-    print_info "Installing host dependencies from ../requirements_host.txt..."
-    $PIP_CMD install -r "../requirements_host.txt"
+if [ -f "requirements_host.txt" ]; then
+    print_info "Installing host dependencies from requirements_host.txt..."
+    $PIP_CMD install -r "requirements_host.txt"
     # Download NLTK data (punkt) after installation
     print_info "Downloading NLTK 'punkt' tokenizer data (required for sentence splitting)..."
     $PYTHON_CMD -m nltk.downloader punkt
 else
-    print_error "Could not find requirements_host.txt in the parent directory. Cannot install host dependencies."
+    print_error "Could not find requirements_host.txt in the base directory. Cannot install host dependencies."
 fi
 
 deactivate
 print_info "Host Python environment setup complete."
-cd "$INSTALL_DIR_ABS" # Go back to base install dir just in case
 
-        # Directory is not empty, assume files are present from previous attempt/manual copy
-        print_warning "Directory '.' exists and is not empty, but not a git repository. Skipping clone and assuming files are present."
-        print_warning "The docker compose command will use the existing files in this directory."
-    fi
+# --- Google API Configuration ---
+read -p "Do you want to use Google API? The setup is more difficult than setting up Brave API and has a 100/day searching limit (y/N): " USE_GOOGLE_API
+USE_GOOGLE_API=$(echo "$USE_GOOGLE_API" | tr '[:upper:]' '[:lower:]')
+if [[ "$USE_GOOGLE_API" == "y" ]]; then
+    echo "Get API Key from Google Cloud Console (Credentials page)"
+    read -p "Enter GOOGLE_API_KEY= " GOOGLE_API_KEY
+    echo "Get Search Engine ID (cx) from Programmable Search Engine control panel (make sure \"Search entire web\" is ON)"
+    read -p "Enter GOOGLE_CSE_ID= " GOOGLE_CSE_ID
+
+    # Update .env with Google API keys
+    sed -i "s/^GOOGLE_API_KEY=.*/GOOGLE_API_KEY=\"${GOOGLE_API_KEY}\"/" .env
+    sed -i "s/^GOOGLE_CSE_ID=.*/GOOGLE_CSE_ID=\"${GOOGLE_CSE_ID}\"/" .env
 fi
-print_info "Orpheus-FastAPI source code is ready."
-    # Copy .env.example to .env if .env doesn't exist
-    if [ ! -f ".env" ]; then
-        print_info "Copying .env.example to .env..."
-        cp .env.example .env
-    else
-        print_warning ".env file already exists. Skipping copy from .env.example."
-        print_warning "Please review your existing .env file manually: $FASTAPI_DIR/.env"
-    fi
-cd "$INSTALL_DIR_ABS" # Go back to base install dir
+
+# --- Brave API Configuration ---
+read -p "Do you want to enter the Brave API key? (Y/n): " USE_BRAVE_API
+USE_BRAVE_API=$(echo "$USE_BRAVE_API" | tr '[:upper:]' '[:lower:]')
+if [[ "$USE_BRAVE_API" != "n" ]]; then
+    echo "Brave Search API Key (Get from https://api.search.brave.com/)"
+    read -p "BRAVE_API_KEY= " BRAVE_API_KEY
+
+    # Update .env with Brave API key
+    sed -i "s/^BRAVE_API_KEY=.*/BRAVE_API_KEY=\"${BRAVE_API_KEY}\"/" .env
+fi
+
+# --- Gemini API Configuration ---
+read -p "Do you want to use the recommended free Google Gemini 2.0 Flash Exp model with this project? (Y/n): " USE_GEMINI
+USE_GEMINI=$(echo "$USE_GEMINI" | tr '[:upper:]' '[:lower:]')
+if [[ "$USE_GEMINI" != "n" ]]; then
+    echo "You can get a GoogleGemini API key from https://ai.google.dev/gemini-api/docs/api-key"
+    read -p "Enter api_key: " GEMINI_API_KEY
+
+    # Update ai_models.yml with Gemini API key and .env with FAULT_MODEL_CONFIG
+    sed -i "s/api_key: \"Somethingsomethinggminigapikey\"/api_key: \"${GEMINI_API_KEY}\"/g" settings/llm_settings/ai_models.yml
+    sed -i "s/^DEFAULT_MODEL_CONFIG=.*/DEFAULT_MODEL_CONFIG=\"gemini_flash\"/" .env
+else
+    # --- OpenAI API Configuration ---
+    echo "Please enter the OpenAI API compatible server settings:"
+    read -p "api_endpoint: " OPENAI_API_ENDPOINT
+    read -p "api_key: " OPENAI_API_KEY
+    read -p "model: (default ChatGPT4o if nothing entered) " OPENAI_MODEL
+    OPENAI_MODEL=${OPENAI_MODEL:-"ChatGPT4o"}
+    read -p "temperature: (Default 0.7 if nothing entered) " OPENAI_TEMPERATURE
+    OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.7}
+
+    # Update ai_models.yml with OpenAI API settings
+    sed -i "s/api_endpoint: \"\"/api_endpoint: \"${OPENAI_API_ENDPOINT}\"/g" settings/llm_settings/ai_models.yml
+    sed -i "s/api_key: \"sk1-example\"/api_key: \"${OPENAI_API_KEY}\"/g" settings/llm_settings/ai_models.yml
+    sed -i "s/model: \"QwQ-32B_Example\"/model: \"${OPENAI_MODEL}\"/g" settings/llm_settings/ai_models.yml
+    sed -i "s/temperature: 0.7/temperature: ${OPENAI_TEMPERATURE}/g" settings/llm_settings/ai_models.yml
+
+    # Update .env with FAULT_MODEL_CONFIG to default_model
+    sed -i "s/^DEFAULT_MODEL_CONFIG=.*/DEFAULT_MODEL_CONFIG=\"default_model\"/" .env
+fi
 
 # --- Final Instructions ---
 echo
@@ -379,14 +438,14 @@ echo "4. To stop the services:"
 echo "   Press Ctrl+C in the terminal where compose is running, or if detached:"
 echo "   $DOCKER_COMPOSE_CMD -f docker-compose-gpu.yml down"
 echo
-echo "5. To run the host Python scripts (mainv3.py, orpheus_ttsv3.py):"
+echo "5. To run the host Python scripts (script_builder.py, orpheus_tts.py):"
 echo "   - Open a NEW terminal window/tab in the BASE directory (where this installer script and the Python scripts are located)."
-echo "   - Activate the host virtual environment (located inside the installation directory):"
-echo "     source \"${INSTALL_DIR_ABS}/host_venv/bin/activate\""
+echo "   - Activate the host virtual environment:"
+echo "     source \"./host_venv/bin/activate\""
 echo "   - Run the desired script (e.g.):"
-echo "     ${PYTHON_CMD} mainv3.py --topic \"Your Topic Here\" --keywords \"keyword1,keyword2\""
+echo "     ${PYTHON_CMD} script_builder.py --topic \"Your Topic Here\" --keywords \"keyword1,keyword2\""
 echo "     # or"
-echo "     ${PYTHON_CMD} orpheus_ttsv3.py --script podcast_script_final.txt --dev"
+echo "     ${PYTHON_CMD} orpheus_tts.py --script podcast_script_final.txt --dev"
 echo "   - Deactivate the environment when finished:"
 echo "     deactivate"
 echo
