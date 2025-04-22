@@ -1,86 +1,183 @@
 # Ecne AI Podcaster
 
-## Overview
+Automated AI podcast generation from topic/keywords to final video. Leverages web research, LLMs for scripting, and TTS for audio synthesis.
 
-Ecne AI Podcaster is a tool designed to automate the creation of AI-generated podcasts. It takes a topic, keywords, and optional guidance, researches relevant information, generates a script, synthesizes speech, and produces a final podcast video file.
+![ecneAI_Podcast](https://github.com/user-attachments/assets/8ee380bd-aea0-45f1-8651-40784778b7ee)
 
-## Workflow
+---
 
-The podcast generation process follows these steps:
+## ✨ Features
 
-1.  **Setup:** Run the `installer.sh` script to install necessary dependencies, including Python packages, Docker, Docker Compose, ffmpeg, and potentially system libraries like Tkinter, libsndfile, and PortAudio. The installer also clones the required `Orpheus-FastAPI` repository and sets up the necessary Docker environment.
-2.  **Script Building:** Execute `script_builder.py`. Provide it with keywords, a topic, and optional guidance.
-    * The script can use search APIs (Google or Brave) to find relevant articles based on the keywords, or you can provide a list of direct article URLs or a folder/files containing reference documents (txt, pdf, docx).
-    * If `--no-search` is used, you must provide direct article URLs or reference documents.
-    * It utilizes an AI model (configurable via `ai_models.yml`) to discover sources, scrape and summarize content, and generate an initial podcast script.
-    * The script is then refined by the AI for natural flow and TTS preparation (expanding abbreviations, numbers, etc.).
-    * Optionally, it can also generate a written report based on the gathered information.
-    * The final script is saved as `podcast_script_final.txt`.
-3.  **Text-to-Speech & Video Assembly:** Run `orpheus_tts.py` with the generated `podcast_script_final.txt`.
-    * Specify host and guest voices.
-    * Use the `--dev` option to launch a GUI (based on Tkinter) for reviewing and regenerating individual audio segments (intro, dialogue segments, outro). The GUI allows tweaking audio processing settings (like gain, padding, FFmpeg filters including de-essing, noise reduction, compression, normalization), selecting background/character images, and choosing intro/outro music.
-    * The script interacts with the Orpheus TTS FastAPI endpoint.
-    * It finalizes the reviewed segments into a single `.mp4` podcast video file.
-4.  **Final Product:** The resulting `.mp4` file is a complete AI-generated podcast, ready for further editing or direct publishing.
+*   **Automated Workflow:** Generates podcasts from topic/keywords with minimal user intervention.
+*   **Flexible Research:** Uses web search (Google/Brave), direct URLs, or local documents (txt, pdf, docx) as source material.
+*   **AI-Powered Scripting:** Employs Large Language Models (configurable via `ai_models.yml`) for:
+    *   Source discovery and relevance scoring.
+    *   Content summarization and extraction.
+    *   Initial draft generation.
+    *   Script refinement for natural flow and TTS optimization.
+*   **High-Quality TTS:** Integrates with Orpheus TTS (via Orpheus-FastAPI) for realistic voice synthesis.
+*   **Multi-Voice Support:** Assign distinct host and guest voices.
+*   **Optional GUI Review:** `--dev` mode provides a Tkinter interface for reviewing, regenerating, and tweaking individual audio segments.
+*   **Audio Post-Processing:** Configurable gain, padding, and advanced FFmpeg filters (de-essing, noise reduction, compression, normalization) per voice via YAML profiles.
+*   **Video Output:** Assembles audio segments, background/character images, and intro/outro music into a final `.mp4` video file.
+*   **Optional Reporting:** Can generate a written report summarizing the research findings.
+*   **Dockerized Backend:** Simplifies TTS backend setup using Docker Compose and Orpheus-FastAPI. GPU acceleration supported via NVIDIA Container Toolkit.
 
-## Key Components/Scripts
+---
 
-* **`installer.sh` (`orpheus_Installer.txt`)**:
-    * Checks for and installs prerequisites (Git, Docker, Python, pip, ffmpeg, common audio/GUI libraries). Attempts OS detection for automated dependency installation.
-    * Clones the `Orpheus-FastAPI` repository.
-    * Sets up a Python virtual environment for host scripts (`script_builder.py`, `orpheus_tts.py`) and installs dependencies (`requirements_host.txt`, NLTK data).
-    * Relies on Docker Compose and `docker-compose-gpu.yml` to manage the TTS backend (FastAPI app, llama.cpp server, Orpheus GGUF model). Requires NVIDIA Container Toolkit for GPU acceleration.
-* **`script_builder.py` (`script_builder.txt`)**:
-    * Orchestrates the research and scriptwriting process.
-    * Uses `requests`, `python-dotenv`, `PyYAML` for configuration and API calls.
-    * Performs web scraping using `newspaper4k`, `BeautifulSoup4`, and `selenium`.
-    * Reads local documents using `PyPDF2` and `python-docx`.
-    * Optionally searches the web using Google Custom Search API or Brave Search API. Requires API keys set in `.env`.
-    * Leverages a configurable LLM via an OpenAI-compatible API for:
-        * Discovering relevant web/Reddit sources.
-        * Summarizing and scoring scraped/reference content.
-        * Generating the initial podcast script.
-        * Refining the script for naturalness and TTS compatibility.
-    * Saves outputs (logs, prompts, summaries, final script, optional report) to a timestamped archive directory.
-* **`orpheus_tts.py` (`orpheus_tts.txt`)**:
-    * Handles the Text-to-Speech conversion and audio/video assembly.
-    * Uses `requests` to call the Orpheus TTS FastAPI endpoint.
-    * Uses `soundfile`, `numpy`, `scipy` for audio reading/writing/processing.
-    * Uses `pydub` (optional) for audio manipulation (gain, trimming, padding, concatenation).
-    * Uses `ffmpeg` (must be installed) for advanced audio filtering (Noise Reduction, Compression, Normalization, De-essing) configured via YAML voice profiles.
-    * Provides an optional development GUI (`--dev`) using `tkinter`, `Pillow`, and `matplotlib` for segment review, audio playback (requires `pygame`), waveform visualization, and parameter adjustment.
-    * Uses `nltk` for sentence tokenization when `--guest-breakup` is enabled.
-    * Loads voice-specific configurations (gain, trim, FFmpeg parameters) from YAML files in `settings/voices/`.
-    * Generates the final `.mp4` video using images and audio segments (Note: Specific video generation logic seems intended but might be in a separate linked script/module not provided, as `generate_podcast_videov4` is mentioned but its code is missing).
+## 🚀 Workflow Overview
 
-## Examples
+1.  **Setup:** Run `installer.sh` to install dependencies (Python, Docker, FFmpeg, etc.) and set up the Orpheus-FastAPI backend environment.
+2.  **Script Generation:** Execute `script_builder.py` with your topic, keywords, and optional guidance/sources. The LLM researches and writes `podcast_script_final.txt`.
+3.  **Audio/Video Generation:** Run `orpheus_tts.py` using the script.
+    *   Recommended use `--dev` for GUI-based segment review and adjustment.
+    *   Specify host/guest voices.
+    *   Configure images, music, and audio processing.
+4.  **Final Product:** An `.mp4` podcast video is generated.
 
-The following are examples of podcasts created using this workflow:
+---
 
-1.  **Mabinogi Reforging Guide:**  (https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
-[![Dundell's Cyberspace Podcast- Mabinogi Reforging system talk](https://i.ytimg.com/vi/gHvIbpv95iQ/hqdefault.jpg)](https://www.youtube.com/watch?v=gHvIbpv95iQ&t "Dundell's Cyberspace Podcast- Mabinogi Reforging system talk")
-3.  **Evaluating LLMs for Code Generation:** (https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h)
-[![Dundell's Cyberspace Podcast- Mabinogi Reforging system talk](https://i.ytimg.com/vi/9pTBPMgRlBU/hqdefault.jpg)](https://www.youtube.com/watch?v=9pTBPMgRlBU&t "Dundell's Cyberspace Podcast - Evaluating LLMs for Code Generation")
+## ⚙️ Key Components
 
+*   **`installer.sh` (`orpheus_Installer.sh`)**:
+    *   Handles prerequisite checks and installation (Git, Docker, Python, FFmpeg, audio/GUI libs).
+    *   Clones `Orpheus-FastAPI` repository.
+    *   Sets up Python virtual environment for host scripts.
+    *   Configures Docker Compose (`docker-compose-gpu.yml`) for the TTS backend (Requires NVIDIA Container Toolkit for GPU).
+*   **`script_builder.py` (`script_builder.py`)**:
+    *   Orchestrates research and script writing.
+    *   **Input:** Topic, keywords, guidance, optional URLs/local files (`txt`, `pdf`, `docx`). `--no-search` requires provided sources.
+    *   **Research:** Uses `newspaper4k`, `BeautifulSoup4`, `selenium` for scraping; `PyPDF2`, `python-docx` for local files. Optional Google/Brave Search API integration (requires `.env` keys).
+    *   **AI Interaction:** Communicates with a configurable OpenAI-compatible LLM endpoint (`ai_models.yml`) for source discovery, summarization, scoring, script generation, and refinement.
+    *   **Output:** Saves logs, prompts, summaries, `podcast_script_final.txt`, and optional report to a timestamped archive.
+*   **`orpheus_tts.py` (`orpheus_tts.py`)**:
+    *   Manages TTS conversion and audio/video assembly.
+    *   **TTS Interaction:** Sends requests to the Orpheus TTS FastAPI endpoint.
+    *   **Audio Handling:** Uses `soundfile`, `numpy`, `scipy`, `pydub` (optional) for basic audio manipulation.
+    *   **Advanced Audio:** Leverages `ffmpeg` for filtering based on voice profiles (`settings/voices/*.yml`).
+    *   **GUI (`--dev`):** Uses `tkinter`, `Pillow`, `matplotlib` for UI, review, and waveform display. `pygame` needed for playback.
+    *   **Segmentation:** Uses `nltk` for sentence tokenization (`--guest-breakup`).
+    *   **Video Assembly:** Combines audio, images (background, characters), and music (intro/outro) into the final `.mp4`.
 
+---
 
-## Dependencies & Credits
+## 🛠️ Setup
 
-This project relies on several external tools, libraries, and services:
+### Prerequisites
 
-* **Core Tools:** Python 3, pip, Git, Docker, Docker Compose, FFmpeg
-* **TTS Backend:**
-    * Orpheus TTS (by Canopy Labs)
-    * Orpheus-FastAPI (by Lex-au)
-    * Llama.cpp (implied)
-    * Hugging Face (for model download)
-* **Python Libraries (Primary):**
-    * `script_builder.py`: requests, newspaper4k, PyPDF2, python-docx, selenium, python-dotenv, PyYAML, beautifulsoup4
-    * `orpheus_tts.py`: requests, soundfile, numpy, PyYAML, tkinter, Pillow, nltk, pydub (optional), matplotlib, scipy, pygame (optional)
-* **APIs (Optional):**
-    * AI API (OpenAI-compatible endpoint configured via `ai_models.yml`)
-    * Google Custom Search API
-    * Brave Search API
-* **System Libraries (Potential):** Tkinter, libsndfile, PortAudio, NVIDIA Container Toolkit (for GPU)
+*   Linux-based OS (Installer attempts OS detection for package managers like `apt`, `yum`, `pacman`)
+*   Git
+*   Python 3.8+ & Pip
+*   Docker & Docker Compose (Installer tried to handle)
+*   FFmpeg (Installer tries to handle)
+*   NVIDIA GPU with NVIDIA Container Toolkit (for GPU acceleration, recommended)
+*   Potentially system libraries: Tkinter (`python3-tk`), libsndfile (`libsndfile1`), PortAudio (`portaudio19-dev`) - installer attempts to handle these.
 
-Credit is due to the creators of these libraries and services. Please ensure compliance with their respective licenses and terms of service.
+### Installation Steps
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/ETomberg391/Ecne-AI-Podcaster
+    cd Ecne-AI-Podcaster
+    ```
+
+2.  **Run the Installer:**
+    *   Make the installer executable:
+        ```bash
+        chmod +x installer.sh
+        ```
+    *   Execute the installer script:
+        ```bash
+        ./installer.sh
+        ```
+    *   The script will guide you through dependency checks, installations, cloning Orpheus-FastAPI, setting up the Python virtual environment (`venv-host`), and configuring the Docker backend. Follow any prompts from the script.
+
+---
+
+## ▶️ Usage
+
+1.  **Activate Host Virtual Environment:**
+    ```bash
+    source venv-host/bin/activate
+    ```
+
+2.  **Build the Script:**
+    *   **Using Web Search:**
+        ```bash
+        python script_builder.py --topic "The future of renewable energy" --keywords "solar power, wind energy, battery storage, grid modernization" --guidance "Focus on recent technological advancements and challenges."
+        ```
+    *   **Using Specific URLs:**
+        ```bash
+        python script_builder.py --topic "Analysis of recent AI paper" --no-search --urls "https://example.com/article1" "https://anothersite.org/paper.pdf"
+        ```
+    *   **Using Local Files:**
+        ```bash
+        python3 script_builder.py --llm-model gemini_flash --topic "What are te best most efficient ways to get Precise Reforges?" --report --guidance "Please include what are precise reforges, how to get, what might not be worth the effort,and a small section on what Journeyman reforges are." --reference-docs-folder research/Example_Docs_Folder --no-search
+        ```
+    *   Check the `archive/` directory for `podcast_script_final.txt`.
+
+3.  **Generate Podcast Audio/Video:**
+    *   **Command-Line Generation:**
+        ```bash
+        python orpheus_tts.py --script archive/<timestamp>/podcast_script_final.txt --host-voice tara --guest-voice leo --bg-image assets/background.png --char-image assets/character.png --intro-music assets/intro.mp3 --outro-music assets/outro.mp3
+        ```
+    *   **Using Development GUI:**
+        ```bash
+        python orpheus_tts.py --script archive/<timestamp>/podcast_script_final.txt --host-voice tara --guest-voice leo --dev
+        ```
+        *   The GUI will launch, allowing you to review segments, adjust parameters, select files visually, and then finalize the podcast.
+
+4.  **Output:** Find your final podcast in the specified output location (default: current directory as `podcast_final.mp4`).
+
+---
+
+## 🎬 Examples
+
+Here are some podcasts created using Ecne AI Podcaster:
+
+*   **Mabinogi Reforging Guide:** A discussion on the Mabinogi game's reforging system.
+    *   [![Mabinogi Reforging Guide](https://img.youtube.com/vi/gHvIbpv95iQ/0.jpg)](https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
+    *   Watch on YouTube: [Dundell's Cyberspace Podcast - Mabinogi Reforging](https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
+*   **Evaluating LLMs for Code Generation:** An analysis of Large Language Models in the context of code generation tasks.
+    *   [![Evaluating LLMs](https://img.youtube.com/vi/9pTBPMgRlBU/0.jpg)](https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h)
+    *   Watch on YouTube: [Dundell's Cyberspace Podcast - Evaluating LLMs](https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h)
+
+---
+
+## 🔌 Dependencies & Credits
+
+This project integrates and relies upon numerous fantastic open-source libraries, tools, and services.
+
+**Core Infrastructure:**
+
+*   Python 3.8+
+*   Pip
+*   Git
+*   Docker & Docker Compose
+*   FFmpeg
+
+**TTS Backend (via `installer.sh` & Docker):**
+
+*   **Orpheus-FastAPI** (by Lex-au): Provides the TTS API endpoint.
+*   **Orpheus TTS Model** (by Canopy Labs): The underlying TTS model.
+*   **llama.cpp** (Backend for Orpheus-FastAPI Docker setup).
+
+**APIs (Optional):**
+
+*   **AI Model API:** Any OpenAI-API compatible endpoint (configurable in `ai_models.yml`).
+*   **Google Custom Search API:** For web search functionality.
+*   **Brave Search API:** Alternative web search functionality.
+
+**System Libraries (Handled by `installer.sh`):**
+
+*   `Tkinter` (e.g., `python3-tk`)
+*   `libsndfile` (e.g., `libsndfile1`)
+*   `PortAudio` (e.g., `portaudio19-dev`)
+
+🙏 Huge thanks to the creators and maintainers of all these projects! Please ensure compliance with their respective licenses and terms of service.
+
+---
+
+## 📜 License
+
+This project is licensed under the [Apache License 2.0]
