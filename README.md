@@ -133,6 +133,18 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 
 4.  **Output:** Find your final podcast in the specified output location (default: current directory as `podcast_final.mp4`).
 
+Extra:
+
+**For an example of a workflow provided within the research folder:**
+```bash
+python3 script_builder.py --llm-model gemini_flash --topic "What are the best most efficient ways to get Precise Reforges?" --report --guidance "Please include what are precise reforges, how to get, what might not be worth the effort,and a small section on what Journeyman reforges are." --reference-docs-folder research/Example_Docs_Folder --no-search
+```
+**Then:**
+```bash
+python3 orpheus_tts.py --script archive/20250422_011447_What_are_the_best_most_efficient_ways_to_get_Precis/podcast_script_final.txt --host-voice leo --guest-voice tara --output podcast_Mabinogi_Reforges --dev --guest-breakup
+```
+**NOTE: You would need to set the right folder archive with the timestamp you made it on.**
+
 ---
 
 ## 🎬 Examples
