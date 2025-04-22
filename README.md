@@ -60,7 +60,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
     *   **Video Assembly:** Combines audio, images (background, characters), and music (intro/outro) into the final `.mp4`.
 *   **`settings folder`**:
     *   Manages characters profiles, all images, LLM profiles, intro/outro audio files, etc.
-    *   **Highly Customizable:** All parts from the character cards, character images, background image, music, LLM settings, voice settings can all be changed from he settings folder.
+    *   **Highly Customizable:** All parts from the character cards, character images, background image, music, LLM settings, voice settings can all be changed from the settings folder.
     *   **Automated:** Customizing settings is recognized automatically by the system immediately upon refreshing.
 
 ---
