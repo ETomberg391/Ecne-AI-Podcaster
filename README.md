@@ -174,8 +174,8 @@ This project integrates and relies upon numerous fantastic open-source libraries
 
 **TTS Backend (via `installer.sh` & Docker):**
 
-*   **Orpheus-FastAPI** (by Lex-au): Provides the TTS API endpoint.
-*   **Orpheus TTS Model** (by Canopy Labs): The underlying TTS model.
+*   **Orpheus-FastAPI** (by Lex-au)(https://github.com/Lex-au/Orpheus-FastAPI): Provides the TTS API endpoint.
+*   **Orpheus TTS Model** (by Canopy Labs) (https://github.com/canopyai/Orpheus-TTS): The underlying TTS model.
 *   **llama.cpp** (Backend for Orpheus-FastAPI Docker setup).
 
 **APIs (Optional):**
