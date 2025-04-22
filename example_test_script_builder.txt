@@ -1,10 +1,9 @@
 As a quick test, you can:
 1. run command:
-pip install -r requirements-host.txt
-2. Get a google gemini api key from https://aistudio.google.com/app/apikey
-3. Set the api key to the gemini_flash option in the settins/llm_models/ai_models.yml
-4. run command:
+bash orpheus_tts.sh (Fully setup)
+2. run command: 
+source "./host_venv/bin/activate"
+3. run command:
+python3 script_builder.py --llm-model gemini_flash --topic "What are te best most efficient ways to get Precise Reforges?" --report --guidance "Please include what are precise reforges, how to get, what might not be worth the effort,and a small section on what Journeyman reforges are." --reference-docs-folder research/Example_Docs_Folder --no-search --guest-breakup
 
-python3 script_builder.py --llm-model gemini_flash --topic "What are te best most efficient ways to get Precise Reforges?" --report --guidance "Please include what are precise reforges, how to get, what might not be worth the effort,and a small section on what Journeyman reforges are." --reference-docs-folder research/Example_Docs_Folder --no-search
-
-This hshould then build a report and a podcast script within the archive folder, which the final podcast script file can hen be used with orpheus_tts.py script to build the podcast with.
+This should then build a report and a podcast script within the archive folder, which the final podcast script file can hen be used with orpheus_tts.py script to build the podcast with.
