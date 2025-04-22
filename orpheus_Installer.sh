@@ -83,9 +83,7 @@ print_warning "Please ensure the following are installed if you encounter errors
 print_warning "  - Tkinter: sudo apt install python3-tk (or equivalent)"
 print_warning "  - libsndfile: sudo apt install libsndfile1 (or equivalent)"
 print_warning "  - PortAudio: sudo apt install portaudio19-dev (or equivalent)"
-print_warning "  - Selenium WebDriver: Requires a browser (e.g., Chrome) and the corresponding WebDriver (e.g., chromedriver) installed and in your system's PATH."
-
-
+print_warning "  - Selenium WebDriver: Chrome browser and ChromeDriver are required and will be installed if selected."
 # --- Optional System Dependency Installation ---
 print_info "Attempting to detect Linux distribution for optional dependency installation..."
 OS_ID=""
@@ -225,6 +223,190 @@ if [ -n "$PKG_MANAGER" ] && [ -n "$INSTALL_CMD" ] && [ -n "$DEPS_TO_INSTALL" ]; 
     else
         print_info "Skipping automatic system dependency installation. Please ensure they are installed manually if needed."
     fi
+fi
+
+# --- Chrome and ChromeDriver Installation ---
+if [ -n "$PKG_MANAGER" ] && [ -n "$INSTALL_CMD" ]; then
+    echo
+    read -p "Do you want to install Chrome and ChromeDriver? (y/N): " INSTALL_CHROME
+    INSTALL_CHROME=$(echo "$INSTALL_CHROME" | tr '[:upper:]' '[:lower:]')
+    
+    if [[ "$INSTALL_CHROME" == "y" ]]; then
+        # Check for existing browser installation
+        BROWSER_TYPE=""
+        if command -v google-chrome &> /dev/null; then
+            BROWSER_TYPE="chrome"
+            BROWSER_VERSION=$(google-chrome --version | grep -oP 'Chrome\s+\K\d+\.\d+\.\d+\.\d+' || echo "0")
+            print_info "Found Google Chrome version $BROWSER_VERSION"
+        elif command -v chromium &> /dev/null; then
+            BROWSER_TYPE="chromium"
+            BROWSER_VERSION=$(chromium --version | grep -oP 'Chromium\s+\K\d+\.\d+\.\d+\.\d+' || echo "0")
+            print_info "Found Chromium version $BROWSER_VERSION"
+        fi
+
+        # Check for existing ChromeDriver
+        CHROMEDRIVER_INSTALLED="false"
+        if command -v chromedriver &> /dev/null; then
+            CHROMEDRIVER_VERSION=$(chromedriver --version | grep -oP 'ChromeDriver\s+\K\d+\.\d+\.\d+\.\d+' || echo "0")
+            print_info "Found ChromeDriver version $CHROMEDRIVER_VERSION"
+            CHROMEDRIVER_INSTALLED="true"
+        fi
+
+        # Function to download and install ChromeDriver for Google Chrome
+        setup_chromedriver() {
+            local chrome_version=$(echo "$BROWSER_VERSION" | grep -oP '^\d+' || echo "0")
+            if [ "$chrome_version" == "0" ]; then
+                print_error "Could not detect Chrome/Chromium version"
+            fi
+            
+            print_info "Using browser version: $chrome_version for ChromeDriver"
+            
+            # Create a directory for ChromeDriver if it doesn't exist
+            mkdir -p /tmp/chromedriver
+            cd /tmp/chromedriver
+            
+            # Download the latest ChromeDriver version for the installed Chrome
+            print_info "Downloading ChromeDriver..."
+            curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${chrome_version}" > version.txt
+            CHROMEDRIVER_VERSION=$(cat version.txt)
+            print_info "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
+            
+            wget -q "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+            unzip -o chromedriver_linux64.zip
+            
+            # Install to /usr/local/bin with proper permissions
+            sudo mv chromedriver /usr/local/bin/chromedriver
+            sudo chown root:root /usr/local/bin/chromedriver
+            sudo chmod +x /usr/local/bin/chromedriver
+            
+            # Cleanup
+            cd - > /dev/null
+            rm -rf /tmp/chromedriver
+            
+            print_info "ChromeDriver installation complete."
+        }
+
+        # Install or update browser and ChromeDriver based on the detected package manager
+        case "$PKG_MANAGER" in
+            apt)
+                print_info "Installing Google Chrome using apt..."
+                wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+                sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+                sudo apt-get update
+                sudo apt-get install -y google-chrome-stable
+                BROWSER_TYPE="chrome"
+                ;;
+            dnf|yum)
+                 # Use flags set during initial detection
+                if [[ "$BROWSER_TYPE" == "chromium" ]] && [[ "$CHROMEDRIVER_INSTALLED" == "true" ]]; then
+                     print_info "Chromium and ChromeDriver seem to be installed (detected via command -v)."
+                else
+                    print_info "Attempting to install Chromium and ChromeDriver using ${PKG_MANAGER}..."
+                    # dnf/yum install automatically handles "already installed"
+                    set +e # Allow command to fail without exiting script
+                    # Updated package names to use chromium-driver which is more common across distributions
+                    sudo $PKG_MANAGER install -y chromium chromium-browser-common chromium-driver
+                    INSTALL_EXIT_CODE=$?
+                    set -e # Re-enable exit on error
+
+                    if [ $INSTALL_EXIT_CODE -eq 0 ]; then
+                        print_info "DNF/Yum installation/update check complete."
+                        # Update flags after successful install attempt
+                        BROWSER_TYPE="chromium"
+                        CHROMEDRIVER_INSTALLED="true"
+                    else
+                        # Check if they might be installed now despite error (e.g., partial success)
+                        if command -v chromium &> /dev/null && command -v chromedriver &> /dev/null; then
+                             print_warning "DNF/Yum installation command finished with code $INSTALL_EXIT_CODE, but chromium and chromedriver commands were found. Proceeding cautiously."
+                             BROWSER_TYPE="chromium"
+                             CHROMEDRIVER_INSTALLED="true"
+                        else
+                             print_error "DNF/Yum installation failed (Exit Code: $INSTALL_EXIT_CODE). Please install 'chromium' and 'chromium-driver' packages manually."
+                        fi
+                    fi
+                fi
+                ;;
+            pacman)
+                # Use flags set during initial detection
+                if [[ "$BROWSER_TYPE" == "chromium" ]] && [[ "$CHROMEDRIVER_INSTALLED" == "true" ]]; then
+                    print_info "Chromium and ChromeDriver seem to be installed (detected via command -v)."
+                else
+                    print_info "Attempting to install/update Chromium and ChromeDriver using pacman..."
+                    # Use --needed to only install if missing or outdated
+                    # Use correct package names for Arch Linux: chromium and chromium-driver
+                    set +e # Allow command to fail without exiting script
+                    sudo pacman -S --noconfirm --needed chromium chromium-driver
+                    INSTALL_EXIT_CODE=$?
+                    set -e # Re-enable exit on error
+
+                    if [ $INSTALL_EXIT_CODE -eq 0 ]; then
+                        print_info "Pacman installation/update check complete."
+                        # Update flags after successful install attempt
+                        BROWSER_TYPE="chromium"
+                        CHROMEDRIVER_INSTALLED="true"
+                    # Check if error code 1 means "target not found" specifically
+                    elif [ $INSTALL_EXIT_CODE -eq 1 ] && sudo pacman -S --noconfirm --needed chromium chromium-driver 2>&1 | grep -q "target not found"; then
+                         print_error "Pacman installation failed: 'target not found'. Please ensure the packages are available in your repositories."
+                    else
+                        # Check if they might be installed now despite other errors
+                        if command -v chromium &> /dev/null && command -v chromedriver &> /dev/null; then
+                             print_warning "Pacman installation command finished with code $INSTALL_EXIT_CODE, but chromium and chromedriver commands were found. Proceeding cautiously."
+                             BROWSER_TYPE="chromium"
+                             CHROMEDRIVER_INSTALLED="true"
+                        else
+                            print_error "Pacman installation failed (Exit Code: $INSTALL_EXIT_CODE). Please install 'chromium' and 'chromium-driver' packages manually."
+                        fi
+                    fi
+                fi
+                ;;
+            zypper)
+                 # Use flags set during initial detection
+                if [[ "$BROWSER_TYPE" == "chromium" ]] && [[ "$CHROMEDRIVER_INSTALLED" == "true" ]]; then
+                     print_info "Chromium and ChromeDriver seem to be installed (detected via command -v)."
+                else
+                    print_info "Attempting to install Chromium and ChromeDriver using zypper..."
+                    # Updated package name for openSUSE/SLES
+                    # zypper install automatically handles "already installed"
+                    set +e # Allow command to fail without exiting script
+                    sudo zypper install -y chromium chromium-driver
+                    INSTALL_EXIT_CODE=$?
+                    set -e # Re-enable exit on error
+
+                    # Zypper exit codes: 0=ok, 104=not found, others=error
+                    if [ $INSTALL_EXIT_CODE -eq 0 ]; then
+                        print_info "Zypper installation/update check complete."
+                        # Update flags after successful install attempt
+                        BROWSER_TYPE="chromium"
+                        CHROMEDRIVER_INSTALLED="true"
+                    elif [ $INSTALL_EXIT_CODE -eq 104 ]; then
+                         print_error "Zypper installation failed: Package not found. Please ensure 'chromium' and 'chromium-driver' are available in your repositories."
+                    else
+                         # Check if they might be installed now despite other errors
+                        if command -v chromium &> /dev/null && command -v chromedriver &> /dev/null; then
+                             print_warning "Zypper installation command finished with code $INSTALL_EXIT_CODE, but chromium and chromedriver commands were found. Proceeding cautiously."
+                             BROWSER_TYPE="chromium"
+                             CHROMEDRIVER_INSTALLED="true"
+                        else
+                             print_error "Zypper installation failed (Exit Code: $INSTALL_EXIT_CODE). Please install 'chromium' and 'chromium-driver' packages manually."
+                        fi
+                    fi
+                fi
+                ;;
+        esac
+        
+        # Setup ChromeDriver only for Google Chrome or if not already installed
+        if [[ "$BROWSER_TYPE" == "chrome" ]] || [[ "$CHROMEDRIVER_INSTALLED" == "false" ]]; then
+            if [[ "$PKG_MANAGER" != "dnf" && "$PKG_MANAGER" != "yum" && "$PKG_MANAGER" != "zypper" && "$PKG_MANAGER" != "pacman" ]]; then
+                setup_chromedriver
+            fi
+        fi
+        
+        print_info "Chrome and ChromeDriver installation complete."
+    else
+        print_info "Skipping Chrome and ChromeDriver installation."
+    fi
+else
+    print_warning "Unsupported package manager. Please install Chrome and ChromeDriver manually."
 fi
 
 echo
