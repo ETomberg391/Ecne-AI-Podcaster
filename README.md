@@ -21,7 +21,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 *   **Audio Post-Processing:** Configurable gain, padding, and advanced FFmpeg filters (de-essing, noise reduction, compression, normalization) per voice via YAML profiles.
 *   **Video Output:** Assembles audio segments, background/character images, and intro/outro music into a final `.mp4` video file.
 *   **Optional Reporting:** Can generate a written report summarizing the research findings.
-*   **Dockerized Backend:** Simplifies TTS backend setup using Docker Compose and Orpheus-FastAPI. GPU acceleration supported via NVIDIA Container Toolkit.
+*   **Dockerized Backend:** Thanks to the Orpheus-FastAPI project, the TTS backend setup is overly simplified using Docker from their repo.
 
 ---
 
@@ -58,6 +58,10 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
     *   **GUI (`--dev`):** Uses `tkinter`, `Pillow`, `matplotlib` for UI, review, and waveform display. `pygame` needed for playback.
     *   **Segmentation:** Uses `nltk` for sentence tokenization (`--guest-breakup`).
     *   **Video Assembly:** Combines audio, images (background, characters), and music (intro/outro) into the final `.mp4`.
+*   **`settings folder` (`settings folder`)**:
+    *   Manages characters profiles, all images, LLM profiles, intro/outro audio files, etc.
+    *   **Highly Customizable:** All parts from the character cards, character images, background image, music, LLM settings, voice settings can all be changed from he settings folder.
+    *   **Automated:** Customizing settings is recognized automatically by the system immediately upon refreshing.
 
 ---
 
@@ -65,13 +69,13 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 
 ### Prerequisites
 
-*   Linux-based OS (Installer attempts OS detection for package managers like `apt`, `yum`, `pacman`)
+*   Linux-based OS (Installer attempts OS detection for package managers like `apt`, `yum`, `pacman`) (Working on Windows testing)
 *   Git
 *   Python 3.8+ & Pip
 *   Docker & Docker Compose (Installer tried to handle)
 *   FFmpeg (Installer tries to handle)
 *   NVIDIA GPU with NVIDIA Container Toolkit (for GPU acceleration, recommended)
-*   Potentially system libraries: Tkinter (`python3-tk`), libsndfile (`libsndfile1`), PortAudio (`portaudio19-dev`) - installer attempts to handle these.
+*   Potentially system libraries: Tkinter (`python3-tk`), libsndfile (`libsndfile1`), PortAudio (`portaudio19-dev`) - (installer attempts to handle these.)
 
 ### Installation Steps
 
