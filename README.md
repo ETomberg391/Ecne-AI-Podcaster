@@ -72,10 +72,10 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 *   Linux-based OS (Installer attempts OS detection for package managers like `apt`, `yum`, `pacman`) (Working on Windows testing)
 *   Git
 *   Python 3.8+ & Pip
-*   Docker & Docker Compose (Installer tried to handle)
+*   Docker & Docker Compose (Installer tries to handle)
 *   FFmpeg (Installer tries to handle)
 *   NVIDIA GPU with NVIDIA Container Toolkit (for GPU acceleration, recommended)
-*   Potentially system libraries: Tkinter (`python3-tk`), libsndfile (`libsndfile1`), PortAudio (`portaudio19-dev`) - (installer attempts to handle these.)
+*   System libraries: Tkinter (`python3-tk`), libsndfile (`libsndfile1`), PortAudio (`portaudio19-dev`) - (installer attempts to handle these.)
 
 ### Installation Steps
 
