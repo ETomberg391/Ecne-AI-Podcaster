@@ -444,8 +444,13 @@ def discover_sources(keywords_list, config):
     for line in sources_list_raw:
         # Remove ' (explanation...)' from the end of the line
         cleaned_line = re.sub(r'\s*\(.*\)\s*$', '', line).strip()
-        if cleaned_line and ('.' in cleaned_line or cleaned_line.startswith('r/')): # Basic validation on cleaned line
-            sources_list.append(cleaned_line)
+        if cleaned_line:
+            # Handle domain names without protocol
+            if '.' in cleaned_line and not cleaned_line.startswith(('http://', 'https://', 'r/')):
+                cleaned_line = f"https://{cleaned_line}"
+            # Add if it's a valid URL or reddit source
+            if cleaned_line.startswith(('http://', 'https://', 'r/')):
+                sources_list.append(cleaned_line)
 
     if not sources_list:
         log_to_file(f"Warning: No valid sources extracted after parsing.\nParsed content: {sources_str}")
