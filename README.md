@@ -39,7 +39,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 
 ## ⚙️ Key Components
 
-*   **`installer.sh` (`orpheus_Installer.sh`)**:
+*   **`orpheus_installer.sh`**:
     *   Handles prerequisite checks and installation (Git, Docker, Python, FFmpeg, audio/GUI libs).
     *   Clones `Orpheus-FastAPI` repository.
     *   Sets up Python virtual environment for host scripts.
@@ -50,7 +50,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
     *   **Research:** Uses `newspaper4k`, `BeautifulSoup4`, `selenium` for scraping; `PyPDF2`, `python-docx` for local files. Optional Google/Brave Search API integration (requires `.env` keys).
     *   **AI Interaction:** Communicates with a configurable OpenAI-compatible LLM endpoint (`ai_models.yml`) for source discovery, summarization, scoring, script generation, and refinement.
     *   **Output:** Saves logs, prompts, summaries, `podcast_script_final.txt`, and optional report to a timestamped archive.
-*   **`orpheus_tts.py` (`orpheus_tts.py`)**:
+*   **`orpheus_tts.py`**:
     *   Manages TTS conversion and audio/video assembly.
     *   **TTS Interaction:** Sends requests to the Orpheus TTS FastAPI endpoint.
     *   **Audio Handling:** Uses `soundfile`, `numpy`, `scipy`, `pydub` (optional) for basic audio manipulation.
@@ -58,7 +58,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
     *   **GUI (`--dev`):** Uses `tkinter`, `Pillow`, `matplotlib` for UI, review, and waveform display. `pygame` needed for playback.
     *   **Segmentation:** Uses `nltk` for sentence tokenization (`--guest-breakup`).
     *   **Video Assembly:** Combines audio, images (background, characters), and music (intro/outro) into the final `.mp4`.
-*   **`settings folder` (`settings folder`)**:
+*   **`settings folder`**:
     *   Manages characters profiles, all images, LLM profiles, intro/outro audio files, etc.
     *   **Highly Customizable:** All parts from the character cards, character images, background image, music, LLM settings, voice settings can all be changed from he settings folder.
     *   **Automated:** Customizing settings is recognized automatically by the system immediately upon refreshing.
