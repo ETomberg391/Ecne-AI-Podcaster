@@ -123,11 +123,11 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 3.  **Generate Podcast Audio/Video:**
     *   **Command-Line Generation:**
         ```bash
-        python orpheus_tts.py --script archive/<timestamp>/podcast_script_final.txt --host-voice tara --guest-voice leo --bg-image assets/background.png --char-image assets/character.png --intro-music assets/intro.mp3 --outro-music assets/outro.mp3
+        python orpheus_tts.py --script archive/<timestamp>/podcast_script_final.txt --host-voice leo --guest-voice tara --bg-image assets/background.png --char-image assets/character.png --intro-music assets/intro.mp3 --outro-music assets/outro.mp3
         ```
     *   **Using Development GUI:**
         ```bash
-        python orpheus_tts.py --script archive/<timestamp>/podcast_script_final.txt --host-voice tara --guest-voice leo --dev
+        python orpheus_tts.py --script archive/<timestamp>/podcast_script_final.txt --host-voice leo --guest-voice tara --dev
         ```
         *   The GUI will launch, allowing you to review segments, adjust parameters, select files visually, and then finalize the podcast.
 
