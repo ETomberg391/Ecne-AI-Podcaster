@@ -1,3 +1,8 @@
+# Update In Progress:
+Refactoring the Report Builder process with placing all parts as imports from a functions folder. Thsi should make it easier to view and update features as they are required. This is already built and just checking the full process once my development computer is back up and running.
+
+Additionally once pushed, will refactor the Podcast script as well. End goal is to just make it easier to work on, and eventually add in a GUI for the script building to make it easier to design a research request.
+
 # Ecne AI Podcaster
 
 Automated AI podcast generation from topic/keywords to final video. Leverages web research, LLMs for scripting, and TTS for audio synthesis.
