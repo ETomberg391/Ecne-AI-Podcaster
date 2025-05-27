@@ -1,8 +1,8 @@
 # Update 5/27/2025:
 
-Part 1 of breaking down script builder and adding its own WebGUI complete, and additional fixes in place including an easier Installer for Linux.
-Additional improvements on the way to also break down the TTS script, and add its own WebGUI based off its current Pygame GUI design, and then add in an all-in-one WebGUI design to be easier to use.
-Eventually once finished, I'll take a look into the Dia TTS service as an alternative option to Orpheus.
+*   Part 1 of breaking down script builder and adding its own WebGUI complete, and additional fixes in place including an easier Installer for Linux.
+*   Additional improvements on the way to also break down the TTS script, and add its own WebGUI based off its current Pygame GUI design, and then add in an all-in-one WebGUI design to be easier to use.
+*   Eventually once finished, I'll take a look into the Dia TTS service as an alternative option to Orpheus.
 
 # Ecne AI Podcaster
 
