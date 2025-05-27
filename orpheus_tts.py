@@ -19,13 +19,25 @@ from PIL import Image, ImageTk # For image display (pip install Pillow)
 import nltk # For sentence tokenization (pip install nltk; run python -m nltk.downloader punkt once)
 import subprocess
 import shlex
+
+# Import the video generation function from the new location
+from functions.generate_podcast_video import main as generate_video
+# Add the virtual environment's site-packages to sys.path
+# This helps ensure libraries from the venv are found even if the script isn't run
+# directly via the venv's python executable in some environments.
+venv_site_packages = os.path.join(os.path.dirname(__file__), 'host_venv', 'lib', f'python{sys.version_info.major}.{sys.version_info.minor}', 'site-packages')
+if os.path.exists(venv_site_packages) and venv_site_packages not in sys.path:
+    sys.path.insert(0, venv_site_packages)
+    print(f"Added {venv_site_packages} to sys.path")
+
 try:
     from pydub import AudioSegment # For audio manipulation (pip install pydub)
     # Optional: Specify ffmpeg path if not in system PATH
     # AudioSegment.converter = "/path/to/ffmpeg"
     pydub_available = True
-except ImportError:
+except ImportError as e:
     print("Warning: 'pydub' library not found. Intro/Outro functionality disabled. pip install pydub")
+    print(f"ImportError details: {e}")
     pydub_available = False
 import matplotlib
 matplotlib.use('TkAgg') # Force TkAgg backend BEFORE importing pyplot
@@ -3366,7 +3378,7 @@ if __name__ == "__main__":
 
                          try:
                              print(f"Calling video generator with args: {vars(video_args)}")
-                             # generate_video(video_args.config_json, video_args.output_video, video_args) # Disabled as generate_podcast_videov4 is removed
+                             generate_video(video_args.config_json, video_args.output_video, video_args) # Call the video generation function
                              print(f"Video generation process initiated for {video_output_path}.")
                              # Note: generate_video handles its own success/failure printing.
                              # We mark success based on JSON creation, video is best-effort here.

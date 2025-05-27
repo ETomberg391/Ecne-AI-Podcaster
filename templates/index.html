@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Podcast Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>AI Podcast Generator</h1>
+
+        <form id="report-form">
+            <div class="form-group">
+                <label for="topic">Topic:</label>
+                <input type="text" id="topic" name="topic" required>
+            </div>
+
+            <div class="form-group">
+                <label for="keywords">Keywords (comma-separated):</label>
+                <input type="text" id="keywords" name="keywords">
+            </div>
+
+            <div class="form-group">
+                <label for="guidance">Guidance:</label>
+                <textarea id="guidance" name="guidance" rows="4"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="api">Search API:</label>
+                <select id="api" name="api">
+                    <option value="google">Google</option>
+                    <option value="brave">Brave</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="llm-model">LLM Model:</label>
+                <select id="llm-model" name="llm-model">
+                    <!-- Options will be populated dynamically by JavaScript -->
+                    <option value="">Select a model</option>
+                </select>
+            </div>
+:start_line:44
+-------
+
+            <div class="form-group">
+                <label for="character-host">Host Profile Name:</label>
+                <input type="text" id="character-host" name="character-host" value="host" required>
+            </div>
+
+            <div class="form-group">
+                <label for="character-guest">Guest Profile Name:</label>
+                <input type="text" id="character-guest" name="character-guest" value="guest" required>
+            </div>
+
+            <div class="form-group">
+                <label for="from_date">From Date:</label>
+                <input type="date" id="from_date" name="from_date">
+            </div>
+
+            <div class="form-group">
+                <label for="to_date">To Date:</label>
+                <input type="date" id="to_date" name="to_date">
+            </div>
+
+            <div class="form-group">
+                <label for="max-web-results">Max Web Results:</label>
+                <input type="number" id="max-web-results" name="max-web-results" value="3" min="1">
+            </div>
+
+            <div class="form-group">
+                <label for="max-reddit-results">Max Reddit Posts:</label>
+                <input type="number" id="max-reddit-results" name="max-reddit-results" value="5" min="0">
+            </div>
+
+            <div class="form-group">
+                <label for="max-reddit-comments">Max Reddit Comments per Post:</label>
+                <input type="number" id="max-reddit-comments" name="max-reddit-comments" value="5" min="0">
+            </div>
+
+            <div class="form-group">
+                <label for="per-keyword-results">Per Keyword Results (Optional):</label>
+                <input type="number" id="per-keyword-results" name="per-keyword-results" min="1">
+            </div>
+
+            <div class="form-group">
+                <label for="score-threshold">Score Threshold (0-10):</label>
+                <input type="number" id="score-threshold" name="score-threshold" value="5" min="0" max="10">
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="combine-keywords" name="combine-keywords">
+                <label for="combine-keywords">Combine Keywords</label>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="no-search" name="no-search">
+                <label for="no-search">No Search (Use only provided documents/articles)</label>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="reference-docs-summarize" name="reference-docs-summarize">
+                <label for="reference-docs-summarize">Summarize Reference Docs</label>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="skip-refinement" name="skip-refinement">
+                <label for="skip-refinement">Skip Script Refinement</label>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="no-reddit" name="no-reddit">
+                <label for="no-reddit">Exclude Reddit</label>
+            </div>
+
+             <div class="form-group checkbox-group">
+                <input type="checkbox" id="report" name="report" checked>
+                <label for="report">Generate Report (Optional)</label>
+             </div>
+
+            <div class="form-group checkbox-group">
+               <input type="checkbox" id="skip-audio" name="skip-audio">
+               <label for="skip-audio">Skip Audio Synthesis</label>
+            </div>
+
+
+            <div class="form-group">
+                <label for="reference-docs">Reference Documents (Drag & Drop Files):</label>
+                <div id="reference-docs-drop-area" class="drop-area">Drag and drop files here</div>
+                <ul id="reference-docs-list"></ul>
+                <input type="file" id="reference-docs" name="reference-docs" multiple style="display: none;">
+            </div>
+
+             <div class="form-group">
+                <label for="reference-docs-folder">Reference Documents Folder (Drag & Drop Folder):</label>
+                <div id="reference-docs-folder-drop-area" class="drop-area">Drag and drop a folder here</div>
+                 <p id="reference-docs-folder-path"></p>
+                <input type="file" id="reference-docs-folder" name="reference-docs-folder" webkitdirectory directory style="display: none;">
+            </div>
+
+             <div class="form-group">
+                <label for="direct-articles">Direct Articles File (Drag & Drop .txt file):</label>
+                <div id="direct-articles-drop-area" class="drop-area">Drag and drop a .txt file here</div>
+                 <p id="direct-articles-file-path"></p>
+                <input type="file" id="direct-articles" name="direct-articles" accept=".txt" style="display: none;">
+            </div>
+
+
+            <button type="submit" id="generate-button">Generate Podcast</button>
+            <div id="process-status" style="display: none; align-items: center; margin-top: 10px;">
+                <button type="button" id="stop-button" style="background-color: #dc3545; margin-right: 10px;">Stop Podcast</button>
+                <div id="loading-spinner" class="spinner"></div>
+                <span id="timer" style="margin-left: 10px; font-weight: bold;">00:00:00</span>
+            </div>
+        </form>
+
+        <div id="output">
+            <h2>Output</h2>
+            <pre></pre>
+        </div>
+
+        <div id="results" style="display: none;">
+            <h2>Results</h2>
+            <p>Podcast generated successfully!</p>
+            <div id="output-links"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html

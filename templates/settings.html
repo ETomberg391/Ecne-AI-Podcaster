@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - AI Podcast Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Settings</h1>
+
+        <nav>
+            <a href="{{ url_for('index') }}">Podcast Generation</a>
+        </nav>
+
+        <div class="settings-section">
+            <h2>API Keys (.env)</h2>
+            <form id="api-keys-form">
+                <div class="form-group">
+                    <label for="google_api_key">GOOGLE_API_KEY:</label>
+                    <input type="text" id="google_api_key" name="GOOGLE_API_KEY">
+                </div>
+                <div class="form-group">
+                    <label for="google_cse_id">GOOGLE_CSE_ID:</label>
+                    <input type="text" id="google_cse_id" name="GOOGLE_CSE_ID">
+                </div>
+                <div class="form-group">
+                    <label for="brave_api_key">BRAVE_API_KEY:</label>
+                    <input type="text" id="brave_api_key" name="BRAVE_API_KEY">
+                </div>
+                 <div class="form-group">
+                    <label for="reddit_client_id">REDDIT_CLIENT_ID:</label>
+                    <input type="text" id="reddit_client_id" name="REDDIT_CLIENT_ID">
+                </div>
+                 <div class="form-group">
+                    <label for="reddit_client_secret">REDDIT_CLIENT_SECRET:</label>
+                    <input type="text" id="reddit_client_secret" name="REDDIT_CLIENT_SECRET">
+                </div>
+                 <div class="form-group">
+                    <label for="reddit_user_agent">REDDIT_USER_AGENT:</label>
+                    <input type="text" id="reddit_user_agent" name="REDDIT_USER_AGENT">
+                </div>
+                <button type="submit">Save API Keys</button>
+            </form>
+        </div>
+
+        <div class="settings-section">
+            <h2>LLM Settings (ai_models.yml)</h2>
+            <form id="llm-settings-form">
+                <div class="form-group">
+                    <label for="llm-model-select">Select LLM Model:</label>
+                    <select id="llm-model-select" name="llm-model-select">
+                        <!-- Options populated dynamically -->
+                        <option value="">-- Select a model --</option>
+                    </select>
+                </div>
+
+                <div id="llm-model-details" style="display: none;">
+                    <div class="form-group">
+                        <label for="llm-model-name">Model Name:</label>
+                        <input type="text" id="llm-model-name" name="model" readonly>
+                    </div>
+                     <div class="form-group">
+                        <label for="llm-api-key">API Key:</label>
+                        <input type="text" id="llm-api-key" name="api_key">
+                    </div>
+                     <div class="form-group">
+                        <label for="llm-api-base">API Base URL:</label>
+                        <input type="text" id="llm-api-base" name="api_base">
+                    </div>
+                     <div class="form-group">
+                        <label for="llm-max-tokens">Max Tokens:</label>
+                        <input type="number" id="llm-max-tokens" name="max_tokens">
+                    </div>
+                     <div class="form-group">
+                        <label for="llm-temperature">Temperature:</label>
+                        <input type="number" id="llm-temperature" name="temperature" step="0.01">
+                    </div>
+                     <div class="form-group">
+                        <label for="llm-top-p">Top P:</label>
+                        <input type="number" id="llm-top-p" name="top_p" step="0.01">
+                    </div>
+                     <div class="form-group">
+                        <label for="llm-tool-config">Tool Config (JSON):</label>
+                        <textarea id="llm-tool-config" name="tool_config" rows="4"></textarea>
+                    </div>
+                    <!-- Add other relevant LLM settings fields as needed -->
+
+                    <button type="button" id="delete-llm-model">Delete Selected Model</button>
+                </div>
+
+                <h3>Add New LLM Model</h3>
+                 <div class="form-group">
+                    <label for="new-llm-key">New Model Key:</label>
+                    <input type="text" id="new-llm-key" name="new_llm_key">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-model-name">Model Name:</label>
+                    <input type="text" id="new-llm-model-name" name="new_model_name">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-api-key">API Key:</label>
+                    <input type="text" id="new-llm-api-key" name="new_api_key">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-api-base">API Base URL:</label>
+                    <input type="text" id="new-llm-api-base" name="new_api_base">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-max-tokens">Max Tokens:</label>
+                    <input type="number" id="new-llm-max-tokens" name="new_max_tokens">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-temperature">Temperature:</label>
+                    <input type="number" id="new-llm-temperature" name="new_temperature" step="0.01">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-top-p">Top P:</label>
+                    <input type="number" id="new-llm-top-p" name="new_top_p" step="0.01">
+                </div>
+                 <div class="form-group">
+                    <label for="new-llm-tool-config">Tool Config (JSON):</label>
+                    <textarea id="new-llm-tool-config" name="new_tool_config" rows="4"></textarea>
+                </div>
+                <!-- Add other relevant new LLM settings fields -->
+
+                <button type="submit">Save LLM Settings</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='settings.js') }}"></script>
+</body>
+</html
