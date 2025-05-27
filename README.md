@@ -2,7 +2,14 @@
 
 Automated AI podcast generation from topic/keywords to final video. Leverages web research, LLMs for scripting, and TTS for audio synthesis.
 
+<div style="display: flex; gap: 10px;">
+  <img src="https://github.com/user-attachments/assets/1c910199-bb0c-4181-9a6f-05dc4b351348" alt="Screenshot_20250526_230535" style="width: 50%;"><img src="https://github.com/user-attachments/assets/c06ed2f3-d9aa-4851-8c0c-098f6042bc8f" alt="Screenshot_20250526_230602" style="width: 50%;">
+</div>
+
+![Screenshot_20250526_233526](https://github.com/user-attachments/assets/501daf79-8e6f-4a1d-8fa6-0db820aff4bc)
+
 ![ecneAI_Podcast](https://github.com/user-attachments/assets/8ee380bd-aea0-45f1-8651-40784778b7ee)
+
 
 ---
 
