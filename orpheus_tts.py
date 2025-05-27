@@ -764,10 +764,21 @@ class TTSDevGUI:
 
                     # --- Populate processing options using loaded config and calculated padding ---
                     # User modifications will be saved back to details via handlers, but selection always resets to defaults from config/logic.
+
+                    # Set default enhancement toggles based on voice and general defaults
+                    if voice == 'leo':
+                        default_ffmpeg_enabled = False # Explicitly disable for leo
+                        default_deesser_enabled = False # Explicitly disable for leo
+                        print(f"  Segment {self.current_gui_selection}: Voice is 'leo', defaulting FFmpeg/De-esser OFF.")
+                    else:
+                        default_ffmpeg_enabled = True # Default FFmpeg ON for other voices
+                        default_deesser_enabled = True # Default De-esser ON for other voices
+                        print(f"  Segment {self.current_gui_selection}: Voice is '{voice}', defaulting FFmpeg/De-esser ON.")
+
                     self.ffmpeg_enhancement_var.set(default_ffmpeg_enabled) # Set enhancement toggle default
                     self.deesser_var.set(default_deesser_enabled)         # Set de-esser toggle default
 
-                    # Set UI variables from loaded config
+                    # Set UI variables from loaded config (these are parameters, not toggles)
                     self.gain_var.set(default_gain) # Set gain slider from config
                     self.trim_end_ms_var.set(default_trim_end_ms)
                     self.deesser_freq_var.set(default_deesser_freq)
