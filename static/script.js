@@ -15,11 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const referenceDocsInput = document.getElementById('reference-docs');
     let uploadedReferenceDocs = []; // Store paths of uploaded reference docs
 
-    const referenceDocsFolderDropArea = document.getElementById('reference-docs-folder-drop-area');
-    const referenceDocsFolderPath = document.getElementById('reference-docs-folder-path');
-    const referenceDocsFolderInput = document.getElementById('reference-docs-folder');
-    let uploadedReferenceDocsFolder = null; // Store path of the uploaded folder
-
     const directArticlesDropArea = document.getElementById('direct-articles-drop-area');
     const directArticlesFilePath = document.getElementById('direct-articles-file-path');
     const directArticlesInput = document.getElementById('direct-articles');
@@ -40,89 +35,63 @@ document.addEventListener('DOMContentLoaded', function() {
         element.classList.remove('highlight');
     }
 
-    function handleDrop(event, dropArea, fileInput, fileListElement = null, filePathElement = null, isFolder = false, isSingleFile = false) {
+    function handleDrop(event, dropArea, fileInput, fileListElement = null, filePathElement = null, isSingleFile = false) {
         const dt = event.dataTransfer;
         let files = [];
 
-        if (isFolder) {
-             // For folder drop, we expect a single item which is the folder
-             if (dt.items && dt.items.length > 0 && dt.items[0].webkitGetAsEntry) {
-                  const entry = dt.items[0].webkitGetAsEntry();
-                  if (entry && entry.isDirectory) {
-                       // We don't process folder contents here, just indicate a folder was dropped
-                       // The actual files will be handled by the backend on upload
-                       filePathElement.textContent = `Folder: ${entry.name}`;
-                       // Store a placeholder or the folder name for now, actual path comes from backend
-                       uploadedReferenceDocsFolder = entry.name; // Placeholder
-                       // Clear any previously selected files for this input type
-                       fileInput.files = dt.files; // Assign the dropped files/folder to the input element
-                  } else {
-                       alert("Please drop a single folder.");
-                       filePathElement.textContent = '';
-                       uploadedReferenceDocsFolder = null;
-                       fileInput.value = ''; // Clear the file input
-                  }
-             } else {
-                  alert("Folder upload not supported in this browser.");
-                  filePathElement.textContent = '';
-                  uploadedReferenceDocsFolder = null;
-                  fileInput.value = ''; // Clear the file input
-             }
-        } else {
-             // For file drop
-             files = dt.files;
+        // For file drop
+        files = dt.files;
 
-             if (isSingleFile && files.length > 1) {
-                  alert("Please drop only one file.");
-                  filePathElement.textContent = '';
-                  if (fileListElement) fileListElement.innerHTML = '';
-                  if (isSingleFile && filePathElement) filePathElement.textContent = '';
-                  fileInput.value = ''; // Clear the file input
-                  if (isSingleFile && dropArea === directArticlesDropArea) uploadedDirectArticlesFile = null;
-                  return;
-             }
+        if (isSingleFile && files.length > 1) {
+             alert("Please drop only one file.");
+             filePathElement.textContent = '';
+             if (fileListElement) fileListElement.innerHTML = '';
+             if (isSingleFile && filePathElement) filePathElement.textContent = '';
+             fileInput.value = ''; // Clear the file input
+             if (isSingleFile && dropArea === directArticlesDropArea) uploadedDirectArticlesFile = null;
+             return;
+        }
 
-             if (fileListElement) {
-                 fileListElement.innerHTML = ''; // Clear previous list for multiple files
-             }
-             if (filePathElement) {
-                 filePathElement.textContent = ''; // Clear previous path for single file
-             }
+        if (fileListElement) {
+            fileListElement.innerHTML = ''; // Clear previous list for multiple files
+        }
+        if (filePathElement) {
+            filePathElement.textContent = ''; // Clear previous path for single file
+        }
 
-             const fileList = [];
-             for (let i = 0; i < files.length; i++) {
-                 const file = files[i];
-                 fileList.push(file);
-                 if (fileListElement) {
-                     const listItem = document.createElement('li');
-                     listItem.textContent = file.name;
-                     const removeButton = document.createElement('span');
-                     removeButton.textContent = 'x';
-                     removeButton.classList.add('remove-file');
-                     removeButton.onclick = function() {
-                         // Remove from list and potentially from a temporary storage if implemented
-                         listItem.remove();
-                         // Note: Removing from the visual list doesn't remove from the input's FileList directly.
-                         // We'll handle the actual files to upload when the form is submitted.
-                         // For now, rely on the input.files or a separate array if needed.
-                     };
-                     listItem.appendChild(removeButton);
-                     fileListElement.appendChild(listItem);
-                 }
-                 if (isSingleFile && filePathElement) {
-                     filePathElement.textContent = `File: ${file.name}`;
-                 }
-             }
+        const fileList = [];
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            fileList.push(file);
+            if (fileListElement) {
+                const listItem = document.createElement('li');
+                listItem.textContent = file.name;
+                const removeButton = document.createElement('span');
+                removeButton.textContent = 'x';
+                removeButton.classList.add('remove-file');
+                removeButton.onclick = function() {
+                    // Remove from list and potentially from a temporary storage if implemented
+                    listItem.remove();
+                    // Note: Removing from the visual list doesn't remove from the input's FileList directly.
+                    // We'll handle the actual files to upload when the form is submitted.
+                    // For now, rely on the input.files or a separate array if needed.
+                };
+                listItem.appendChild(removeButton);
+                fileListElement.appendChild(listItem);
+            }
+            if (isSingleFile && filePathElement) {
+                filePathElement.textContent = `File: ${file.name}`;
+            }
+        }
 
-             // Assign the dropped files to the corresponding file input element
-             fileInput.files = files;
+        // Assign the dropped files to the corresponding file input element
+        fileInput.files = files;
 
-             // Store the file names/paths temporarily. Actual paths will come from backend after upload.
-             if (dropArea === referenceDocsDropArea) {
-                 uploadedReferenceDocs = Array.from(files).map(f => f.name); // Store names for display
-             } else if (dropArea === directArticlesDropArea) {
-                 uploadedDirectArticlesFile = files.length > 0 ? files[0].name : null; // Store name for display
-             }
+        // Store the file names/paths temporarily. Actual paths will come from backend after upload.
+        if (dropArea === referenceDocsDropArea) {
+            uploadedReferenceDocs = Array.from(files).map(f => f.name); // Store names for display
+        } else if (dropArea === directArticlesDropArea) {
+            uploadedDirectArticlesFile = files.length > 0 ? files[0].name : null; // Store name for display
         }
 
         unhighlight(dropArea);
@@ -140,29 +109,11 @@ document.addEventListener('DOMContentLoaded', function() {
     ['dragleave', 'drop'].forEach(eventName => {
         referenceDocsDropArea.addEventListener(eventName, () => unhighlight(referenceDocsDropArea), false);
     });
-    referenceDocsDropArea.addEventListener('drop', (e) => handleDrop(e, referenceDocsDropArea, referenceDocsInput, referenceDocsList, null, false, false), false);
+    referenceDocsDropArea.addEventListener('drop', (e) => handleDrop(e, referenceDocsDropArea, referenceDocsInput, referenceDocsList, null, false), false);
     // Allow clicking the drop area to open file dialog
     referenceDocsDropArea.addEventListener('click', () => referenceDocsInput.click());
     referenceDocsInput.addEventListener('change', function() {
-         handleDrop({ dataTransfer: { files: this.files } }, referenceDocsDropArea, this, referenceDocsList, null, false, false);
-    });
-
-
-    // Reference Docs Folder (Single Folder)
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        referenceDocsFolderDropArea.addEventListener(eventName, preventDefaults, false);
-    });
-    ['dragenter', 'dragover'].forEach(eventName => {
-        referenceDocsFolderDropArea.addEventListener(eventName, () => highlight(referenceDocsFolderDropArea), false);
-    });
-    ['dragleave', 'drop'].forEach(eventName => {
-        referenceDocsFolderDropArea.addEventListener(eventName, () => unhighlight(referenceDocsFolderDropArea), false);
-    });
-    referenceDocsFolderDropArea.addEventListener('drop', (e) => handleDrop(e, referenceDocsFolderDropArea, referenceDocsFolderInput, null, referenceDocsFolderPath, true, true), false);
-     // Allow clicking the drop area to open folder dialog
-    referenceDocsFolderDropArea.addEventListener('click', () => referenceDocsFolderInput.click());
-    referenceDocsFolderInput.addEventListener('change', function() {
-         handleDrop({ dataTransfer: { files: this.files } }, referenceDocsFolderDropArea, this, null, referenceDocsFolderPath, true, true);
+         handleDrop({ dataTransfer: { files: this.files } }, referenceDocsDropArea, this, referenceDocsList, null, false);
     });
 
 
@@ -176,11 +127,11 @@ document.addEventListener('DOMContentLoaded', function() {
     ['dragleave', 'drop'].forEach(eventName => {
         directArticlesDropArea.addEventListener(eventName, () => unhighlight(directArticlesDropArea), false);
     });
-    directArticlesDropArea.addEventListener('drop', (e) => handleDrop(e, directArticlesDropArea, directArticlesInput, null, directArticlesFilePath, false, true), false);
+    directArticlesDropArea.addEventListener('drop', (e) => handleDrop(e, directArticlesDropArea, directArticlesInput, null, directArticlesFilePath, true), false);
      // Allow clicking the drop area to open file dialog
     directArticlesDropArea.addEventListener('click', () => directArticlesInput.click());
     directArticlesInput.addEventListener('change', function() {
-         handleDrop({ dataTransfer: { files: this.files } }, directArticlesDropArea, this, null, directArticlesFilePath, false, true);
+         handleDrop({ dataTransfer: { files: this.files } }, directArticlesDropArea, this, null, directArticlesFilePath, true);
     });
 
 
@@ -288,7 +239,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     let audioFile = null;
 
                     data.output_files.forEach(file => {
-                        if (file.endsWith('.txt')) {
+                        // Look for the final script file ending with '_podcast_script.txt'
+                        if (file.endsWith('_podcast_script.txt')) {
                             scriptFile = file;
                         } else if (file.endsWith('.mp3')) {
                             audioFile = file;
