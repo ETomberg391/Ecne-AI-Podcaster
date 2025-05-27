@@ -15,3 +15,6 @@ matplotlib
 scipy
 pygame
 lxml_html_clean
+flask
+audioop-lts
+moviepy==1.0.3
