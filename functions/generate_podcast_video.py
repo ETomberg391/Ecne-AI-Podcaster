@@ -456,11 +456,18 @@ def main(config_path, output_path, args):
     else: print("Warning: Args object not provided, using default constants.")
 
     # --- Directories & Config ---
-    base_output_dir = os.path.dirname(output_path)
+    # Determine base directory for temporary files
+    if args and hasattr(args, 'temp_output_dir') and args.temp_output_dir:
+        base_temp_dir = args.temp_output_dir
+        print(f"Using custom base temporary directory: {base_temp_dir}")
+    else:
+        base_temp_dir = os.path.dirname(output_path)
+        print(f"Using default base temporary directory: {base_temp_dir}")
+
     # Use unique subdirs for work/temp based on output filename to avoid conflicts
     output_filename_base = os.path.splitext(os.path.basename(output_path))[0]
-    work_dir = os.path.join(base_output_dir, f'{output_filename_base}_work_v4')
-    temp_segments_dir = os.path.join(base_output_dir, f'{output_filename_base}_temp_v4')
+    work_dir = os.path.join(base_temp_dir, f'{output_filename_base}_work_v4')
+    temp_segments_dir = os.path.join(base_temp_dir, f'{output_filename_base}_temp_v4')
     os.makedirs(work_dir, exist_ok=True)
     os.makedirs(temp_segments_dir, exist_ok=True)
     print(f"Using work directory (audio copies): {work_dir}")
@@ -740,6 +747,7 @@ if __name__ == "__main__":
     perf_group = parser.add_argument_group('Performance and Debugging Options')
     perf_group.add_argument("--workers", type=int, default=None, help="Number of worker processes for parallel clip generation. Defaults to CPU count.")
     perf_group.add_argument("--keep-temp-files", action='store_true', help="Keep temporary audio/video segment/padding files and list file after completion.")
+    perf_group.add_argument("--temp-output-dir", type=str, default=None, help="Optional: Base directory for temporary work and segment files. Defaults to output_video's directory.")
 
     args = parser.parse_args()
 
