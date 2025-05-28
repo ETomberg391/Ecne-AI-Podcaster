@@ -150,7 +150,7 @@ def format_refinement_prompt(initial_script_text, topic, host_profile, guest_pro
         f"   - '#' -> 'number' or 'hash'\n"
         f"   - '@' -> 'at'\n"
         f"   - '&' -> 'and'\n"
-        f"4. **TTS Prep - Handle Asterisks/Emphasis:** Replace text emphasized with asterisks (e.g., *important* or **critical**) with phrasing that conveys emphasis verbally, or remove the asterisks if emphasis isn't crucial for TTS.\n"
+        f"4. **TTS Prep - Handle Asterisks/Emphasis:** Remove all asterisks used for emphasis (e.g., *important* or **critical**). If emphasis is still needed, rephrase the text or enclose it in double quotes (e.g., \"important\").\n"
         f"5. **Maintain Structure:** Keep the original 'Host: ' and 'Guest: ' labels for each line.\n"
         f"6. **Character Consistency:** Ensure the refined dialogue still perfectly matches the character profiles.\n"
         f"7. **Mandatory Host Outro:** Ensure the *very last line* of the script is spoken by the Host and is EXACTLY: '{outro_line}'\n\n"
