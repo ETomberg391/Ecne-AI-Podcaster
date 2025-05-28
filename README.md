@@ -1,5 +1,6 @@
-# Update 5/27/2025:
+# Update 5/87/2025:
 
+*   PArt 2 is broken down and remade into podcast_builder.py script. Tested working with some tweaks for final output and archived folder to seperate some logic. Next step is to WebGUI the PArt 2 and move away from the Pygame GUI.
 *   Part 1 of breaking down script builder and adding its own WebGUI complete, and additional fixes in place including an easier Installer for Linux.
 *   Additional improvements on the way to also break down the TTS script, and add its own WebGUI based off its current Pygame GUI design, and then add in an all-in-one WebGUI design to be easier to use both parts to create the script, and create the podcast video.
 *   Eventually once finished, I'll take a look into the Dia TTS service as an alternative option to Orpheus.
