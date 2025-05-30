@@ -27,14 +27,14 @@ if '%errorlevel%' NEQ '0' (
 
 :: If we reach here, we have admin privileges
 echo Running Orpheus TTS Windows Installer with Administrator privileges...
-echo Current directory: %CD%
+echo Current directory: "%CD%"
 echo.
 
 :: Check if PowerShell script exists
 if not exist "Installer.ps1" (
     echo ERROR: Installer.ps1 not found in the current directory.
-    echo Current directory: %CD%
-    echo Batch file directory: %BATCH_DIR%
+    echo Current directory: "%CD%"
+    echo Batch file directory: "%BATCH_DIR%"
     echo Please ensure this batch file is in the same directory as Installer.ps1
     echo.
     echo Press any key to close...
@@ -43,7 +43,7 @@ if not exist "Installer.ps1" (
 )
 
 :: Run the PowerShell installer with execution policy bypass from the correct directory
-powershell.exe -ExecutionPolicy Bypass -File "%BATCH_DIR%Installer.ps1"
+powershell.exe -ExecutionPolicy Bypass -File ".\Installer.ps1"
 
 :: Check if PowerShell script completed successfully
 if '%errorlevel%' NEQ '0' (
