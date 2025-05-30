@@ -151,6 +151,40 @@ def get_docker_path():
     """Get the path to the Orpheus-FastAPI Docker setup directory."""
     return os.path.join(os.path.dirname(__file__), 'orpheus_tts_setup', 'Orpheus-FastAPI')
 
+def get_docker_compose_command():
+    """Get the appropriate docker-compose command based on platform and availability."""
+    import platform
+    
+    # Try docker compose (V2) first
+    try:
+        result = subprocess.run(['docker', 'compose', 'version'],
+                               capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return ['docker', 'compose']
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    # Fall back to docker-compose (V1)
+    try:
+        result = subprocess.run(['docker-compose', '--version'],
+                               capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return ['docker-compose']
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    
+    # If we're on Windows, also try with .exe extension
+    if platform.system() == 'Windows':
+        try:
+            result = subprocess.run(['docker-compose.exe', '--version'],
+                                   capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                return ['docker-compose.exe']
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    
+    return None
+
 def check_docker_status():
     """Check if Orpheus-FastAPI Docker containers are running."""
     docker_path = get_docker_path()
@@ -161,10 +195,18 @@ def check_docker_status():
             'containers': []
         }
     
+    docker_compose_cmd = get_docker_compose_command()
+    if not docker_compose_cmd:
+        return {
+            'status': 'error',
+            'message': 'Docker Compose not found. Please install Docker Desktop.',
+            'containers': []
+        }
+    
     try:
         # Check if docker-compose is running
-        result = subprocess.run(['docker-compose', '-f', 'docker-compose-gpu.yml', 'ps'],
-                               cwd=docker_path, capture_output=True, text=True, timeout=10)
+        cmd = docker_compose_cmd + ['-f', 'docker-compose-gpu.yml', 'ps']
+        result = subprocess.run(cmd, cwd=docker_path, capture_output=True, text=True, timeout=10)
         
         if result.returncode == 0:
             output_lines = result.stdout.strip().split('\n')
@@ -213,11 +255,20 @@ def check_docker_status():
                     'containers': containers
                 }
         else:
-            return {
-                'status': 'error',
-                'message': f'Docker command failed: {result.stderr}',
-                'containers': []
-            }
+            error_message = result.stderr
+            # Check for common Windows Docker Desktop not running errors
+            if 'dockerDesktopLinuxEngine' in error_message or 'The system cannot find the file specified' in error_message:
+                return {
+                    'status': 'error',
+                    'message': 'Docker Desktop is not running. Please start Docker Desktop and try again.',
+                    'containers': []
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': f'Docker command failed: {error_message}',
+                    'containers': []
+                }
     
     except subprocess.TimeoutExpired:
         return {
@@ -244,10 +295,14 @@ def start_docker_containers():
     if not os.path.exists(docker_path):
         return {'success': False, 'message': 'Orpheus-FastAPI not found. Please run the installer first.'}
     
+    docker_compose_cmd = get_docker_compose_command()
+    if not docker_compose_cmd:
+        return {'success': False, 'message': 'Docker Compose not found. Please install Docker Desktop.'}
+    
     try:
         # Start containers in detached mode with longer timeout for initial builds
-        result = subprocess.run(['docker-compose', '-f', 'docker-compose-gpu.yml', 'up', '-d'],
-                               cwd=docker_path, capture_output=True, text=True, timeout=300)  # 5 minutes for initial build
+        cmd = docker_compose_cmd + ['-f', 'docker-compose-gpu.yml', 'up', '-d']
+        result = subprocess.run(cmd, cwd=docker_path, capture_output=True, text=True, timeout=300)  # 5 minutes for initial build
         
         if result.returncode == 0:
             return {
@@ -264,11 +319,20 @@ def start_docker_containers():
                     'output': result.stderr
                 }
             else:
-                return {
-                    'success': False,
-                    'message': f'Failed to start Docker containers: {result.stderr}',
-                    'output': result.stderr
-                }
+                error_message = result.stderr
+                # Check for common Windows Docker Desktop not running errors
+                if 'dockerDesktopLinuxEngine' in error_message or 'The system cannot find the file specified' in error_message:
+                    return {
+                        'success': False,
+                        'message': 'Docker Desktop is not running. Please start Docker Desktop and try again.',
+                        'output': error_message
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'message': f'Failed to start Docker containers: {error_message}',
+                        'output': error_message
+                    }
     
     except subprocess.TimeoutExpired:
         return {
@@ -284,9 +348,13 @@ def stop_docker_containers():
     if not os.path.exists(docker_path):
         return {'success': False, 'message': 'Orpheus-FastAPI not found.'}
     
+    docker_compose_cmd = get_docker_compose_command()
+    if not docker_compose_cmd:
+        return {'success': False, 'message': 'Docker Compose not found. Please install Docker Desktop.'}
+    
     try:
-        result = subprocess.run(['docker-compose', '-f', 'docker-compose-gpu.yml', 'down'],
-                               cwd=docker_path, capture_output=True, text=True, timeout=30)
+        cmd = docker_compose_cmd + ['-f', 'docker-compose-gpu.yml', 'down']
+        result = subprocess.run(cmd, cwd=docker_path, capture_output=True, text=True, timeout=30)
         
         if result.returncode == 0:
             return {
