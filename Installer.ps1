@@ -1,0 +1,610 @@
+#Requires -Version 5.1
+
+# PowerShell Installer for Orpheus TTS GGUF Setup (Windows 10/11)
+# Equivalent of Installer.sh for Windows environments
+
+# Set strict mode for better error handling
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+# Get the directory where the script is located
+$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ORIGINAL_DIR = Get-Location
+
+# --- Configuration ---
+$DEFAULT_INSTALL_DIR = "orpheus_tts_setup"
+$DEFAULT_LLAMA_SERVER_PORT = "8080"
+$DEFAULT_FASTAPI_PORT = "5006"
+$MODEL_URL = "https://huggingface.co/lex-au/Orpheus-3b-FT-Q8_0.gguf/resolve/main/Orpheus-3b-FT-Q8_0.gguf?download=true"
+$MODEL_FILENAME = "Orpheus-3b-FT-Q8_0.gguf"
+$PYTHON_CMD = "python"  # Windows typically uses 'python' not 'python3'
+$PIP_CMD = "pip"        # Windows typically uses 'pip' not 'pip3'
+$LLAMA_SERVER_EXE_NAME = "llama-server"
+$ORPHEUS_MAX_TOKENS = "8192"
+
+# --- Helper Functions ---
+function Write-Info {
+    param([string]$Message)
+    Write-Host "INFO: $Message" -ForegroundColor Green
+}
+
+function Write-Warning {
+    param([string]$Message)
+    Write-Host "WARNING: $Message" -ForegroundColor Yellow
+}
+
+function Write-Error {
+    param([string]$Message)
+    Write-Host "ERROR: $Message" -ForegroundColor Red
+    exit 1
+}
+
+# Function to check if a command exists and optionally install it
+function Test-Command {
+    param(
+        [string]$CommandName,
+        [string]$InstallSuggestion = "",
+        [string]$PackageName = $CommandName,
+        [string]$PackageManager = "",
+        [string]$InstallCommand = ""
+    )
+
+    if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
+        Write-Warning "Command '$CommandName' not found."
+        
+        # Only offer to install if we have a package manager and install command
+        if ($PackageManager -and $InstallCommand) {
+            $install = Read-Host "Do you want to attempt to install '$PackageName' using $PackageManager? [Y/n]"
+            $install = $install.ToLower()
+            
+            if ($install -ne "n") {
+                Write-Info "Attempting to install '$PackageName'..."
+                try {
+                    Invoke-Expression "$InstallCommand $PackageName"
+                    Write-Info "'$PackageName' installed successfully."
+                    
+                    # Verify command is now available
+                    if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
+                        Write-Error "Installation of '$PackageName' seemed successful, but command '$CommandName' is still not found. Please check your PATH or the installation."
+                    }
+                    return $true
+                }
+                catch {
+                    Write-Error "Failed to install '$PackageName' using $PackageManager. $_"
+                }
+            }
+            else {
+                $errorMsg = "Command '$CommandName' is required to continue."
+                if ($InstallSuggestion) {
+                    $errorMsg += " $InstallSuggestion"
+                }
+                else {
+                    $errorMsg += " Please install it first."
+                }
+                Write-Error $errorMsg
+            }
+        }
+        else {
+            $errorMsg = "Command '$CommandName' not found."
+            if ($InstallSuggestion) {
+                $errorMsg += " $InstallSuggestion"
+            }
+            else {
+                $errorMsg += " Please install it first."
+            }
+            Write-Error $errorMsg
+        }
+    }
+    return $true
+}
+
+# --- Main Script ---
+Write-Host "---------------------------------------------"
+Write-Host " Orpheus TTS GGUF Setup Script (Windows PowerShell Version) "
+Write-Host "---------------------------------------------"
+
+# --- OS Detection and Package Manager Setup ---
+Write-Info "Detecting Windows version and package manager..."
+
+# Initialize variables
+$OS_TYPE = "windows"
+$OS_ID = ""
+$PKG_MANAGER = ""
+$INSTALL_CMD = ""
+$CHROME_INSTALLED_VIA_PKG_MANAGER = $false
+
+# Detect Windows version
+try {
+    $winVersion = [System.Environment]::OSVersion.Version
+    $winVersionString = (Get-WmiObject -Class Win32_OperatingSystem).Caption
+    
+    Write-Info "Detected: $winVersionString"
+    
+    if ($winVersion.Major -eq 10 -and $winVersion.Build -ge 22000) {
+        $OS_ID = "windows11"
+        Write-Info "Detected Windows 11"
+    }
+    elseif ($winVersion.Major -eq 10) {
+        $OS_ID = "windows10"
+        Write-Info "Detected Windows 10"
+    }
+    else {
+        $OS_ID = "windows"
+        Write-Info "Detected Windows (version unknown)"
+    }
+}
+catch {
+    $OS_ID = "windows"
+    Write-Info "Detected Windows (version detection failed)"
+}
+
+# Check for package managers (Winget/Choco)
+if (Get-Command winget -ErrorAction SilentlyContinue) {
+    $PKG_MANAGER = "winget"
+    $INSTALL_CMD = "winget install -e --accept-source-agreements --accept-package-agreements"
+    Write-Info "Found winget package manager"
+}
+elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+    $PKG_MANAGER = "choco"
+    $INSTALL_CMD = "choco install -y"
+    Write-Info "Found Chocolatey package manager"
+}
+else {
+    Write-Warning "No supported package manager found on Windows (winget or chocolatey). Some prerequisites might need manual installation."
+}
+
+if ($PKG_MANAGER) {
+    Write-Info "Detected Package Manager: $PKG_MANAGER"
+}
+
+Write-Host ""
+
+# --- Prerequisites Check ---
+Write-Info "Checking prerequisites..."
+
+# Check Git
+Test-Command -CommandName "git" -InstallSuggestion "Please install Git from https://git-scm.com/download/win" -PackageName "Git.Git" -PackageManager $PKG_MANAGER -InstallCommand $INSTALL_CMD
+
+Write-Info "Core prerequisites met."
+
+# --- Host Python Script Prerequisites ---
+Write-Info "Checking prerequisites for host Python scripts (script_builder.py, orpheus_tts.py)..."
+
+# Check Python
+Test-Command -CommandName $PYTHON_CMD -InstallSuggestion "Please install Python from https://python.org/downloads" -PackageName "Python.Python.3.11" -PackageManager $PKG_MANAGER -InstallCommand $INSTALL_CMD
+
+# Check pip (usually comes with Python)
+Test-Command -CommandName $PIP_CMD -InstallSuggestion "Pip should come with Python. Please reinstall Python or install pip manually."
+
+# Check ffmpeg
+Test-Command -CommandName "ffmpeg" -InstallSuggestion "Please install ffmpeg from https://ffmpeg.org/download.html" -PackageName "Gyan.FFmpeg" -PackageManager $PKG_MANAGER -InstallCommand $INSTALL_CMD
+
+# --- Docker Installation ---
+Write-Info "Checking for Docker..."
+
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Warning "Command 'docker' not found."
+    
+    if ($PKG_MANAGER -and $INSTALL_CMD) {
+        Write-Host ""
+        $installDocker = Read-Host "Docker is required to run the Orpheus TTS service. Do you want to install Docker Desktop using '$PKG_MANAGER'? [y/N]"
+        $installDocker = $installDocker.ToLower()
+        
+        if ($installDocker -eq "y") {
+            Write-Info "Attempting to install Docker Desktop using $PKG_MANAGER..."
+            
+            try {
+                switch ($PKG_MANAGER) {
+                    "winget" {
+                        Invoke-Expression "$INSTALL_CMD Docker.DockerDesktop"
+                    }
+                    "choco" {
+                        Invoke-Expression "$INSTALL_CMD docker-desktop"
+                    }
+                }
+                Write-Info "Docker Desktop installation attempt finished successfully."
+                Write-Info "IMPORTANT: You may need to restart your computer and enable WSL2 for Docker to work properly."
+                Write-Info "Please follow the Docker Desktop setup wizard after installation."
+            }
+            catch {
+                Write-Error "Docker Desktop installation attempt failed. Please install Docker Desktop manually: https://docs.docker.com/desktop/install/windows-install/"
+            }
+        }
+        else {
+            Write-Error "Docker is required and was not installed automatically. Please install Docker Desktop manually to continue: https://docs.docker.com/desktop/install/windows-install/"
+        }
+    }
+    else {
+        Write-Error "Docker is required but could not be found, and no package manager is available for automatic installation. Please install Docker Desktop manually: https://docs.docker.com/desktop/install/windows-install/"
+    }
+}
+else {
+    Write-Info "Docker found."
+}
+
+# Check Docker Compose (usually included with Docker Desktop on Windows)
+Write-Info "Checking for Docker Compose..."
+try {
+    docker compose version | Out-Null
+    $DOCKER_COMPOSE_CMD = "docker compose"
+    Write-Info "Found 'docker compose' (V2 syntax)."
+}
+catch {
+    try {
+        docker-compose --version | Out-Null
+        $DOCKER_COMPOSE_CMD = "docker-compose"
+        Write-Info "Found 'docker-compose' (V1 syntax)."
+    }
+    catch {
+        Write-Error "Docker Compose not found. Please ensure Docker Desktop is properly installed."
+    }
+}
+
+Write-Host ""
+
+# --- Get User Input ---
+$INSTALL_DIR = Read-Host "Enter installation directory [$DEFAULT_INSTALL_DIR]"
+if ([string]::IsNullOrWhiteSpace($INSTALL_DIR)) {
+    $INSTALL_DIR = $DEFAULT_INSTALL_DIR
+}
+
+# Check if running as administrator (equivalent to sudo check)
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+
+if ($isAdmin) {
+    Write-Warning "Running as Administrator."
+    $confirmAdmin = Read-Host "Are you sure you want to continue as Administrator? (y/N)"
+    $confirmAdmin = $confirmAdmin.ToLower()
+    if ($confirmAdmin -ne "y") {
+        Write-Host "Aborting."
+        exit 1
+    }
+}
+
+# Check for GPU (NVIDIA on Windows)
+$USE_GPU = "n"
+try {
+    nvidia-smi | Out-Null
+    Write-Info "Nvidia GPU detected."
+    $USE_GPU = "y"
+    
+    # On Windows, GPU support for Docker typically comes with Docker Desktop and NVIDIA drivers
+    Write-Info "GPU support should be available through Docker Desktop with NVIDIA drivers."
+}
+catch {
+    Write-Info "No NVIDIA GPU detected or nvidia-smi not available."
+}
+
+# --- Create Directories ---
+Write-Info "Ensuring installation directory exists: $INSTALL_DIR"
+if (-not (Test-Path $INSTALL_DIR)) {
+    New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
+}
+
+Set-Location $INSTALL_DIR
+$INSTALL_DIR_ABS = Get-Location
+
+# Create Orpheus-FastAPI directory
+if (-not (Test-Path "Orpheus-FastAPI")) {
+    New-Item -ItemType Directory -Path "Orpheus-FastAPI" -Force | Out-Null
+}
+
+# --- Get Orpheus-FastAPI Source Code ---
+Write-Info "Ensuring Orpheus-FastAPI source code is present..."
+Set-Location "$INSTALL_DIR_ABS\Orpheus-FastAPI"
+$FASTAPI_DIR = Get-Location
+
+if (Test-Path ".git") {
+    Write-Warning "Orpheus-FastAPI directory already exists, pulling latest."
+    try {
+        git reset --hard HEAD 2>$null
+        git pull origin main 2>$null
+        Write-Info "Successfully pulled latest changes for Orpheus-FastAPI."
+    }
+    catch {
+        Write-Warning "Git pull failed for Orpheus-FastAPI. Proceeding with existing files."
+    }
+}
+elseif ((Get-ChildItem -Force).Count -eq 0) {
+    # Directory is empty, safe to clone
+    Write-Info "Cloning Orpheus-FastAPI repository..."
+    git clone https://github.com/Lex-au/Orpheus-FastAPI.git .
+}
+else {
+    # Directory is not empty and not a git repo
+    Write-Warning "Directory exists and is not empty, but not a git repository. Skipping clone and assuming files are present."
+}
+
+Write-Info "Orpheus-FastAPI source code is ready."
+
+# Check if .env exists in the cloned directory
+if (-not (Test-Path ".env")) {
+    Write-Info "Copying .env.example to .env in Orpheus-FastAPI directory..."
+    if (Test-Path ".env.example") {
+        Copy-Item ".env.example" ".env"
+        Write-Info ".env created from .env.example in Orpheus-FastAPI directory."
+    }
+    else {
+        Write-Warning ".env.example not found in Orpheus-FastAPI directory. Cannot create .env."
+    }
+}
+else {
+    Write-Warning ".env already exists in Orpheus-FastAPI directory. Skipping copy."
+}
+
+Set-Location $ORIGINAL_DIR
+
+# --- .env Configuration (Root Directory) ---
+$ROOT_ENV_PATH = Join-Path $SCRIPT_DIR ".env"
+$EXAMPLE_ENV_PATH = Join-Path $SCRIPT_DIR "settings\env.example"
+
+if (-not (Test-Path $ROOT_ENV_PATH)) {
+    Write-Info "Copying $EXAMPLE_ENV_PATH to $ROOT_ENV_PATH..."
+    Copy-Item $EXAMPLE_ENV_PATH $ROOT_ENV_PATH
+}
+else {
+    Write-Warning "$ROOT_ENV_PATH already exists in root directory. Skipping copy from $EXAMPLE_ENV_PATH."
+}
+
+# Determine expected activation script path
+$VENV_ACTIVATE = ".\host_venv\Scripts\Activate.ps1"
+
+# --- Setup Host Python Environment ---
+Write-Info "Setting up Python virtual environment for host scripts..."
+
+if (-not (Test-Path "host_venv")) {
+    Write-Info "Creating Python virtual environment 'host_venv' for host scripts..."
+    & $PYTHON_CMD -m venv "host_venv"
+}
+else {
+    Write-Warning "Host virtual environment 'host_venv' already exists. Skipping creation."
+    Write-Warning "If you encounter issues, remove the 'host_venv' directory and re-run the script."
+}
+
+Write-Info "Activating host virtual environment and installing dependencies from requirements_host.txt..."
+
+# Activate virtual environment and install dependencies
+try {
+    if (-not (Test-Path $VENV_ACTIVATE)) {
+        Write-Error "Virtual environment activation script not found at: $VENV_ACTIVATE"
+    }
+    
+    # Use & to execute the activation script, then install dependencies
+    & $VENV_ACTIVATE
+    Write-Info "Upgrading pip in host venv..."
+    & ".\host_venv\Scripts\python.exe" -m pip install --upgrade pip
+    
+    $requirementsPath = Join-Path $SCRIPT_DIR "requirements_host.txt"
+    if (Test-Path $requirementsPath) {
+        Write-Info "Installing host dependencies from $requirementsPath..."
+        & ".\host_venv\Scripts\pip.exe" install -r $requirementsPath
+        
+        # Download NLTK data
+        Write-Info "Downloading NLTK 'punkt' tokenizer data..."
+        & ".\host_venv\Scripts\python.exe" -m nltk.downloader punkt
+        Write-Info "Downloading NLTK 'punkt_tab' tokenizer data..."
+        & ".\host_venv\Scripts\python.exe" -m nltk.downloader punkt_tab
+    }
+    else {
+        Write-Error "Could not find $requirementsPath. Cannot install host dependencies."
+    }
+}
+catch {
+    Write-Error "Failed to set up Python virtual environment: $_"
+}
+
+Write-Info "Host Python environment setup complete."
+Write-Host ""
+
+# --- Chrome/ChromeDriver Installation ---
+if ($PKG_MANAGER -and $INSTALL_CMD) {
+    Write-Host ""
+    $installChrome = Read-Host "Do you want to attempt to install/update Google Chrome using $PKG_MANAGER? (Browser is required for Selenium features) [y/N]"
+    $installChrome = $installChrome.ToLower()
+    
+    if ($installChrome -eq "y") {
+        Write-Info "Attempting to install/update Chrome using $PKG_MANAGER..."
+        
+        try {
+            switch ($PKG_MANAGER) {
+                "winget" {
+                    Write-Info "Installing Google Chrome using winget..."
+                    Invoke-Expression "$INSTALL_CMD Google.Chrome"
+                    $CHROME_INSTALLED_VIA_PKG_MANAGER = $true
+                }
+                "choco" {
+                    Write-Info "Installing Google Chrome using chocolatey..."
+                    Invoke-Expression "$INSTALL_CMD googlechrome"
+                    $CHROME_INSTALLED_VIA_PKG_MANAGER = $true
+                }
+            }
+            Write-Info "Chrome installation attempt finished successfully."
+        }
+        catch {
+            Write-Warning "Chrome installation attempt failed: $_"
+        }
+        
+        # ChromeDriver setup for Windows
+        Write-Info "Setting up ChromeDriver..."
+        try {
+            # Install ChromeDriver via package manager
+            switch ($PKG_MANAGER) {
+                "winget" {
+                    Invoke-Expression "$INSTALL_CMD Google.ChromeDriver"
+                }
+                "choco" {
+                    Invoke-Expression "$INSTALL_CMD chromedriver"
+                }
+            }
+            Write-Info "ChromeDriver installation attempt finished."
+        }
+        catch {
+            Write-Warning "ChromeDriver installation failed. You may need to install it manually or use webdriver-manager in Python."
+        }
+    }
+    else {
+        Write-Info "Skipping automatic Chrome/ChromeDriver installation."
+    }
+}
+
+Write-Host ""
+
+# --- Google API Configuration ---
+$useGoogleAPI = Read-Host "Do you want to use Google API? The setup is more difficult than setting up Brave API and has a 100/day searching limit (y/N)"
+$useGoogleAPI = $useGoogleAPI.ToLower()
+
+if ($useGoogleAPI -eq "y") {
+    Write-Host "Get API Key from Google Cloud Console (Credentials page)"
+    $googleAPIKey = Read-Host "Enter GOOGLE_API_KEY"
+    Write-Host "Get Search Engine ID (cx) from Programmable Search Engine control panel (make sure 'Search entire web' is ON)"
+    $googleCSEID = Read-Host "Enter GOOGLE_CSE_ID"
+    
+    # Update .env with Google API keys
+    $envContent = Get-Content $ROOT_ENV_PATH
+    $envContent = $envContent -replace '^GOOGLE_API_KEY=.*', "GOOGLE_API_KEY=`"$googleAPIKey`""
+    $envContent = $envContent -replace '^GOOGLE_CSE_ID=.*', "GOOGLE_CSE_ID=`"$googleCSEID`""
+    $envContent | Set-Content $ROOT_ENV_PATH
+}
+
+# --- Brave API Configuration ---
+$useBraveAPI = Read-Host "Do you want to enter the Brave API key? (Y/n)"
+$useBraveAPI = $useBraveAPI.ToLower()
+
+if ($useBraveAPI -ne "n") {
+    Write-Host "Brave Search API Key (Get from https://api.search.brave.com/)"
+    $braveAPIKey = Read-Host "BRAVE_API_KEY"
+    
+    # Update .env with Brave API key
+    $envContent = Get-Content $ROOT_ENV_PATH
+    $envContent = $envContent -replace '^BRAVE_API_KEY=.*', "BRAVE_API_KEY=`"$braveAPIKey`""
+    $envContent | Set-Content $ROOT_ENV_PATH
+}
+
+# --- ai_models.yml Configuration ---
+$AI_MODELS_YML_PATH = Join-Path $SCRIPT_DIR "settings\llm_settings\ai_models.yml"
+$EXAMPLE_AI_MODELS_YML_PATH = Join-Path $SCRIPT_DIR "settings\llm_settings\example_ai_models.yml"
+
+if (-not (Test-Path $AI_MODELS_YML_PATH)) {
+    Write-Info "Copying $EXAMPLE_AI_MODELS_YML_PATH to $AI_MODELS_YML_PATH..."
+    $parentDir = Split-Path $AI_MODELS_YML_PATH -Parent
+    if (-not (Test-Path $parentDir)) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+    }
+    
+    if (Test-Path $EXAMPLE_AI_MODELS_YML_PATH) {
+        Copy-Item $EXAMPLE_AI_MODELS_YML_PATH $AI_MODELS_YML_PATH
+        Write-Info "$AI_MODELS_YML_PATH created from example."
+    }
+    else {
+        Write-Error "Example AI models file not found: $EXAMPLE_AI_MODELS_YML_PATH. Cannot proceed."
+    }
+}
+else {
+    Write-Warning "$AI_MODELS_YML_PATH already exists. Skipping copy from example."
+}
+
+# --- Gemini API Configuration ---
+$useGemini = Read-Host "Do you want to use the recommended free Google Gemini 2.0 Flash Exp model with this project? (Y/n)"
+$useGemini = $useGemini.ToLower()
+
+if ($useGemini -ne "n") {
+    Write-Host "You can get a Google Gemini API key from https://ai.google.dev/gemini-api/docs/api-key"
+    $geminiAPIKey = Read-Host "Enter api_key"
+    
+    # Update ai_models.yml with Gemini API key
+    $aiModelsContent = Get-Content $AI_MODELS_YML_PATH
+    $aiModelsContent = $aiModelsContent -replace 'api_key: ""', "api_key: `"$geminiAPIKey`""
+    $aiModelsContent | Set-Content $AI_MODELS_YML_PATH
+    
+    # Update .env with DEFAULT_MODEL_CONFIG
+    $envContent = Get-Content $ROOT_ENV_PATH
+    $envContent = $envContent -replace '^DEFAULT_MODEL_CONFIG=.*', 'DEFAULT_MODEL_CONFIG="gemini_flash"'
+    $envContent | Set-Content $ROOT_ENV_PATH
+}
+else {
+    # --- OpenAI API Configuration ---
+    Write-Host "Please enter the OpenAI API compatible server settings:"
+    $openaiEndpoint = Read-Host "api_endpoint"
+    $openaiAPIKey = Read-Host "api_key"
+    $openaiModel = Read-Host "model (default ChatGPT4o if nothing entered)"
+    if ([string]::IsNullOrWhiteSpace($openaiModel)) {
+        $openaiModel = "ChatGPT4o"
+    }
+    $openaiTemp = Read-Host "temperature (Default 0.7 if nothing entered)"
+    if ([string]::IsNullOrWhiteSpace($openaiTemp)) {
+        $openaiTemp = "0.7"
+    }
+    
+    # Update ai_models.yml with OpenAI API settings
+    $aiModelsContent = Get-Content $AI_MODELS_YML_PATH
+    $aiModelsContent = $aiModelsContent -replace 'api_endpoint: ""', "api_endpoint: `"$openaiEndpoint`""
+    $aiModelsContent = $aiModelsContent -replace 'api_key: "sk1-example"', "api_key: `"$openaiAPIKey`""
+    $aiModelsContent = $aiModelsContent -replace 'model: "QwQ-32B_Example"', "model: `"$openaiModel`""
+    $aiModelsContent = $aiModelsContent -replace 'temperature: 0.7', "temperature: $openaiTemp"
+    $aiModelsContent | Set-Content $AI_MODELS_YML_PATH
+    
+    # Update .env with DEFAULT_MODEL_CONFIG
+    $envContent = Get-Content $ROOT_ENV_PATH
+    $envContent = $envContent -replace '^DEFAULT_MODEL_CONFIG=.*', 'DEFAULT_MODEL_CONFIG="default_model"'
+    $envContent | Set-Content $ROOT_ENV_PATH
+}
+
+# --- Final Instructions ---
+Write-Host ""
+Write-Host "---------------------------------------------"
+Write-Host " Setup Complete! "
+Write-Host "---------------------------------------------"
+Write-Host ""
+Write-Host "The necessary source code for Orpheus-FastAPI has been cloned/updated into:"
+Write-Host "  $FASTAPI_DIR"
+Write-Host ""
+
+Write-Host "Next Steps:"
+Write-Host ""
+
+Write-Host "1. Start the services using Docker Compose:"
+Write-Host "   cd `"$FASTAPI_DIR`""
+Write-Host "   $DOCKER_COMPOSE_CMD -f docker-compose-gpu.yml up"
+Write-Host "   (Add '-d' to run in detached mode: $DOCKER_COMPOSE_CMD -f docker-compose-gpu.yml up -d)"
+Write-Host ""
+
+Write-Host "2. Access the Web UI:"
+Write-Host "   Once the containers are running, access the UI in your browser at:"
+Write-Host "   http://127.0.0.1:5005"
+Write-Host ""
+
+Write-Host "3. To stop the services:"
+Write-Host "   Press Ctrl+C in the terminal where compose is running, or if detached:"
+Write-Host "   $DOCKER_COMPOSE_CMD -f docker-compose-gpu.yml down"
+Write-Host ""
+
+Write-Host "4. To run the host Python scripts (script_builder.py, orpheus_tts.py):"
+Write-Host "   - Open a NEW PowerShell window in the BASE directory (where this installer script and the Python scripts are located)."
+Write-Host "   - Activate the host virtual environment:"
+Write-Host "     .\host_venv\Scripts\Activate.ps1"
+Write-Host "   - Run the desired script (e.g.):"
+Write-Host "     python `"$SCRIPT_DIR\script_builder.py`" --topic `"Your Topic Here`" --keywords `"keyword1,keyword2`""
+Write-Host "     # or"
+Write-Host "     python `"$SCRIPT_DIR\orpheus_tts.py`" --script podcast_script_final.txt --dev"
+Write-Host ""
+Write-Host "   - Deactivate the environment when finished: deactivate"
+Write-Host ""
+
+Write-Host "5. Ensure necessary API keys are correctly set in:"
+Write-Host "   - .\.env"
+Write-Host "   - .\settings\llm_settings\ai_models.yml (if modified)"
+Write-Host ""
+
+Write-Host "--- Important Notes ---"
+if ($USE_GPU -eq "y") {
+    Write-Host "* Ensure Docker Desktop is configured correctly with NVIDIA GPU support."
+    Write-Host "* The 'docker-compose-gpu.yml' file is configured for GPU usage."
+}
+else {
+    Write-Host "* No NVIDIA GPU detected. The 'docker-compose-gpu.yml' might still attempt to use GPU resources."
+    Write-Host "  You might need to use or create a CPU-specific compose file (e.g., 'docker-compose-cpu.yml') if GPU is unavailable."
+}
+Write-Host "* All components (FastAPI app, llama.cpp server, model) are managed by Docker Compose."
+Write-Host "* Chrome and ChromeDriver were installed/checked for Selenium features."
+Write-Host "* If Docker Desktop was just installed, you may need to restart your computer."
+Write-Host ""
