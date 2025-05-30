@@ -78,7 +78,7 @@ function Test-Command {
         
         # Only offer to install if we have a package manager and install command
         if ($PackageManager -and $InstallCommand) {
-            $install = Read-Host "Do you want to attempt to install '$PackageName' using $PackageManager? [Y/n]"
+            $install = Read-Host "Do you want to attempt to install '$PackageName' using $PKG_MANAGER? [Y/n]"
             $install = $install.ToLower()
             
             if ($install -ne "n") {
