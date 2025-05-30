@@ -26,6 +26,7 @@ Automated AI podcast generation from topic/keywords to final video. Leverages we
 ## 🚀 Quick Start
 
 ### 1. Installation
+Note: Installer.sh made for Linux OS's (Arch Linux tested). Windows installer Pending.
 ```bash
 git clone https://github.com/ETomberg391/Ecne-AI-Podcaster
 cd Ecne-AI-Podcaster
@@ -33,7 +34,7 @@ chmod +x Installer.sh
 ./Installer.sh
 ```
 
-### 2. Start the Control Panel
+### 2. Start the WebGUI Control Panel
 ```bash
 ./run_control_panel.sh
 ```
