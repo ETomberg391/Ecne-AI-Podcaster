@@ -53,6 +53,7 @@
                     <select id="llm-model-select" name="llm-model-select">
                         <!-- Options populated dynamically -->
                         <option value="">-- Select a model --</option>
+                        <option value="add_new">Add New LLM Model</option>
                     </select>
                 </div>
 
@@ -91,42 +92,47 @@
                     <button type="button" id="delete-llm-model">Delete Selected Model</button>
                 </div>
 
-                <h3>Add New LLM Model</h3>
-                 <div class="form-group">
-                    <label for="new-llm-key">New Model Key:</label>
-                    <input type="text" id="new-llm-key" name="new_llm_key">
+                <div id="llm-add-new-section" style="display: none;">
+                    <h3>Add New LLM Model</h3>
+                    <div class="form-group">
+                        <label for="new-llm-key">Configuration Name:</label>
+                        <input type="text" id="new-llm-key" name="new_llm_key" placeholder="e.g., gpt4_turbo, claude_sonnet, my_local_model">
+                        <small style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
+                            This is the identifier for your model configuration (like "default_model" or "gemini_flash"). Use a descriptive name without spaces.
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-model-name">Model Name:</label>
+                        <input type="text" id="new-llm-model-name" name="new_model_name">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-api-key">API Key:</label>
+                        <input type="text" id="new-llm-api-key" name="new_api_key">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-api-base">API Base URL:</label>
+                        <input type="text" id="new-llm-api-base" name="new_api_endpoint">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-max-tokens">Max Tokens:</label>
+                        <input type="number" id="new-llm-max-tokens" name="new_max_tokens">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-temperature">Temperature:</label>
+                        <input type="number" id="new-llm-temperature" name="new_temperature" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-top-p">Top P:</label>
+                        <input type="number" id="new-llm-top-p" name="new_top_p" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-llm-tool-config">Tool Config (JSON):</label>
+                        <textarea id="new-llm-tool-config" name="new_tool_config" rows="4"></textarea>
+                    </div>
+                    <button type="button" id="add-new-llm-model">Add New Model</button>
                 </div>
-                 <div class="form-group">
-                    <label for="new-llm-model-name">Model Name:</label>
-                    <input type="text" id="new-llm-model-name" name="new_model_name">
-                </div>
-                 <div class="form-group">
-                    <label for="new-llm-api-key">API Key:</label>
-                    <input type="text" id="new-llm-api-key" name="new_api_key">
-                </div>
-                 <div class="form-group">
-                    <label for="new-llm-api-base">API Base URL:</label>
-                    <input type="text" id="new-llm-api-base" name="new_api_endpoint">
-                </div>
-                 <div class="form-group">
-                    <label for="new-llm-max-tokens">Max Tokens:</label>
-                    <input type="number" id="new-llm-max-tokens" name="new_max_tokens">
-                </div>
-                 <div class="form-group">
-                    <label for="new-llm-temperature">Temperature:</label>
-                    <input type="number" id="new-llm-temperature" name="new_temperature" step="0.01">
-                </div>
-                 <div class="form-group">
-                    <label for="new-llm-top-p">Top P:</label>
-                    <input type="number" id="new-llm-top-p" name="new_top_p" step="0.01">
-                </div>
-                 <div class="form-group">
-                    <label for="new-llm-tool-config">Tool Config (JSON):</label>
-                    <textarea id="new-llm-tool-config" name="new_tool_config" rows="4"></textarea>
-                </div>
-                <!-- Add other relevant new LLM settings fields -->
 
-                <button type="submit">Save LLM Settings</button>
+                <button type="submit" id="save-llm-settings-btn">Save LLM Settings</button>
             </form>
         </div>
     </div>
