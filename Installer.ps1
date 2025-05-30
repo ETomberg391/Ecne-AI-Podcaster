@@ -286,17 +286,15 @@ if ([string]::IsNullOrWhiteSpace($INSTALL_DIR)) {
     $INSTALL_DIR = $DEFAULT_INSTALL_DIR
 }
 
-# Check if running as administrator (equivalent to sudo check)
+# Verify running as administrator (batch file should ensure this)
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 
-if ($isAdmin) {
-    Write-Warning "Running as Administrator."
-    $confirmAdmin = Read-Host "Are you sure you want to continue as Administrator? (y/N)"
-    $confirmAdmin = $confirmAdmin.ToLower()
-    if ($confirmAdmin -ne "y") {
-        Write-Host "Aborting."
-        exit 1
-    }
+if (-not $isAdmin) {
+    Write-Error "This installer must be run as Administrator. Please use the Installer_Windows.bat file which handles privilege elevation."
+    exit 1
+}
+else {
+    Write-Info "Running with Administrator privileges."
 }
 
 # Check for GPU (NVIDIA on Windows)
