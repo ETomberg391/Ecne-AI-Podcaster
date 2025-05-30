@@ -53,7 +53,8 @@ echo ================================================================
 echo.
 
 REM Run the control panel app using the virtual environment's Python
-"host_venv\Scripts\python.exe" "control_panel_app.py"
+call "host_venv\Scripts\activate.bat"
+python "control_panel_app.py"
 
 REM If we reach here, the app has stopped
 echo.

@@ -569,6 +569,23 @@ if command -v nvidia-smi &> /dev/null; then
         if [ -f "$SCRIPT_DIR/requirements_host.txt" ]; then
             print_info "Installing host dependencies from $SCRIPT_DIR/requirements_host.txt..."
             $PIP_CMD install -r "$SCRIPT_DIR/requirements_host.txt"
+            
+            # Check Python version and install audioop-lts if Python 3.13+
+            python_major=$($PYTHON_CMD -c "import sys; print(sys.version_info.major)" 2>/dev/null)
+            python_minor=$($PYTHON_CMD -c "import sys; print(sys.version_info.minor)" 2>/dev/null)
+            
+            if [ $? -eq 0 ] && [ -n "$python_major" ] && [ -n "$python_minor" ]; then
+                # Convert to numeric comparison
+                if [ "$python_major" -gt 3 ] || ([ "$python_major" -eq 3 ] && [ "$python_minor" -ge 13 ]); then
+                    print_info "Python $python_major.$python_minor detected. Installing audioop-lts for Python 3.13+ compatibility..."
+                    $PIP_CMD install audioop-lts
+                else
+                    print_info "Python $python_major.$python_minor detected. Using built-in audioop module (audioop-lts not needed)."
+                fi
+            else
+                print_warning "Could not determine Python version. Skipping audioop-lts installation."
+            fi
+            
             # Download NLTK data (punkt) after installation
             print_info "Downloading NLTK 'punkt' tokenizer data (required for sentence splitting)..."
             $PYTHON_CMD -m nltk.downloader punkt

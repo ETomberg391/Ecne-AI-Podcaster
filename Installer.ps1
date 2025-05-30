@@ -17,10 +17,34 @@ $DEFAULT_LLAMA_SERVER_PORT = "8080"
 $DEFAULT_FASTAPI_PORT = "5006"
 $MODEL_URL = "https://huggingface.co/lex-au/Orpheus-3b-FT-Q8_0.gguf/resolve/main/Orpheus-3b-FT-Q8_0.gguf?download=true"
 $MODEL_FILENAME = "Orpheus-3b-FT-Q8_0.gguf"
-$PYTHON_CMD = "python"  # Windows typically uses 'python' not 'python3'
-$PIP_CMD = "pip"        # Windows typically uses 'pip' not 'pip3'
+$PYTHON_CMD = "python"  # Default, will try to refine
+$PIP_CMD = "pip"        # Default, will try to refine
 $LLAMA_SERVER_EXE_NAME = "llama-server"
 $ORPHEUS_MAX_TOKENS = "8192"
+
+# Attempt to find Python 3.11 specifically
+$python311Path = Get-Command python3.11.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+if ($python311Path) {
+    $PYTHON_CMD = $python311Path
+    $PIP_CMD = Join-Path (Split-Path $python311Path -Parent) "pip.exe"
+    Write-Info "Using Python 3.11 from: $PYTHON_CMD"
+}
+else {
+    # If python3.11.exe not found, check the version of the default 'python' command
+    try {
+        $pythonVersionOutput = & python --version 2>&1
+        if ($pythonVersionOutput -match "Python 3\.11\.") {
+            Write-Info "Default 'python' command is Python 3.11."
+        }
+        else {
+            Write-Warning "Default 'python' command is not Python 3.11. Found: $pythonVersionOutput. This might cause compatibility issues."
+            Write-Warning "Please ensure Python 3.11 is installed and accessible via 'python' or 'python3.11'."
+        }
+    }
+    catch {
+        Write-Warning "Could not determine default 'python' version. Ensure Python 3.11 is installed."
+    }
+}
 
 # --- Helper Functions ---
 function Write-Info {
@@ -341,7 +365,7 @@ if (Test-Path ".git") {
         Write-Warning "Git pull failed for Orpheus-FastAPI. Proceeding with existing files."
     }
 }
-elseif ((Get-ChildItem -Force).Count -eq 0) {
+elseif ((Get-ChildItem -Path . -Force | Measure-Object).Count -eq 0) {
     # Directory is empty, safe to clone
     Write-Info "Cloning Orpheus-FastAPI repository..."
     git clone https://github.com/Lex-au/Orpheus-FastAPI.git .
@@ -406,7 +430,7 @@ try {
     }
     
     # Use & to execute the activation script, then install dependencies
-    & $VENV_ACTIVATE
+    . $VENV_ACTIVATE
     Write-Info "Upgrading pip in host venv..."
     & ".\host_venv\Scripts\python.exe" -m pip install --upgrade pip
     
@@ -414,6 +438,23 @@ try {
     if (Test-Path $requirementsPath) {
         Write-Info "Installing host dependencies from $requirementsPath..."
         & ".\host_venv\Scripts\pip.exe" install -r $requirementsPath
+        
+        # Check Python version and install audioop-lts if Python 3.13+
+        try {
+            $pythonVersionOutput = & ".\host_venv\Scripts\python.exe" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+            $pythonVersion = [version]$pythonVersionOutput
+            
+            if ($pythonVersion -ge [version]"3.13") {
+                Write-Info "Python $pythonVersionOutput detected. Installing audioop-lts for Python 3.13+ compatibility..."
+                & ".\host_venv\Scripts\pip.exe" install audioop-lts
+            }
+            else {
+                Write-Info "Python $pythonVersionOutput detected. Using built-in audioop module (audioop-lts not needed)."
+            }
+        }
+        catch {
+            Write-Warning "Could not determine Python version. Skipping audioop-lts installation."
+        }
         
         # Download NLTK data
         Write-Info "Downloading NLTK 'punkt' tokenizer data..."
