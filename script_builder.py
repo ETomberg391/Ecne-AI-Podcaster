@@ -281,9 +281,23 @@ def main():
 
         # 7. Generate & Refine Script
         # Pass relevant_summaries AND reference_docs_content to generate_and_refine_script
-        script_filepath = generate_and_refine_script(relevant_summaries, reference_docs_content, args.topic, host_profile, guest_profile, env_config, args)
-        if not script_filepath:
+        script_filepath_temp = generate_and_refine_script(relevant_summaries, reference_docs_content, args.topic, host_profile, guest_profile, env_config, args)
+        if not script_filepath_temp:
             raise RuntimeError("Failed to generate or refine the podcast script.")
+
+        # Move the generated script to the desired outputs/scripts directory
+        scripts_output_dir = os.path.join(script_dir, "outputs", "scripts")
+        os.makedirs(scripts_output_dir, exist_ok=True)
+        
+        # Extract filename from the temporary path
+        script_filename = os.path.basename(script_filepath_temp)
+        final_script_filepath = os.path.join(scripts_output_dir, script_filename)
+        
+        # Move the file
+        os.rename(script_filepath_temp, final_script_filepath)
+        script_filepath = final_script_filepath # Update script_filepath to the new location
+        print(f"Moved script to: {script_filepath}")
+        log_to_file(f"Moved script to: {script_filepath}")
 
         # Display final script (optional)
         print("\n--- Final Script ---")
@@ -293,6 +307,8 @@ def main():
         print("------------------\n")
 
         # 8. Synthesize Audio (Placeholder)
+        # Note: The synthesize_audio function currently saves to run_archive_dir.
+        # If audio also needs a specific 'outputs/audio' directory, that logic would need to be added here or in synthesize_audio.
         audio_filepath = synthesize_audio(script_filepath, run_archive_dir) # Pass the local run_archive_dir
         if not audio_filepath:
             # Don't raise error, just warn that audio failed
@@ -312,6 +328,26 @@ def main():
              print(f"Run Archive: {run_archive_dir}")
         print(f"Total Duration: {duration:.2f} seconds")
         log_to_file(f"--- AI Podcast Generator Run End --- Duration: {duration:.2f}s ---")
+
+        # Move the run archive directory to outputs/archive
+        if run_archive_dir and os.path.exists(run_archive_dir):
+            archive_base_dir = os.path.join(script_dir, "outputs", "archive")
+            os.makedirs(archive_base_dir, exist_ok=True)
+            
+            # Extract the directory name (timestamp_topic)
+            run_dir_name = os.path.basename(run_archive_dir)
+            new_archive_path = os.path.join(archive_base_dir, run_dir_name)
+            
+            try:
+                import shutil
+                shutil.move(run_archive_dir, new_archive_path)
+                print(f"Moved run directory to archive: {new_archive_path}")
+                log_to_file(f"Moved run directory to archive: {new_archive_path}")
+                # Update the global run_archive_dir in utils to the new location
+                set_run_archive_dir(new_archive_path)
+            except Exception as e:
+                print(f"Warning: Failed to move run directory to archive: {e}")
+                log_to_file(f"Warning: Failed to move run directory to archive: {e}")
 
     except Exception as e:
         print(f"\n--- Workflow Error ---")

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecne AI Podcaster Control Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Ecne AI Podcaster Control Panel</h1>
+        <p>Welcome to your centralized hub for generating podcast scripts and audio/video content.</p>
+
+        <div class="menu-grid">
+            <a href="/script_builder" class="menu-item">
+                <h2>Generate Script</h2>
+                <p>Create new podcast scripts using AI and various data sources.</p>
+            </a>
+            <a href="/podcast_builder" class="menu-item">
+                <h2>Generate Podcast (Audio/Video)</h2>
+                <p>Turn your scripts into full audio and video podcasts.</p>
+            </a>
+            <a href="/history" class="menu-item">
+                <h2>History / View Outputs</h2>
+                <p>Browse and manage all your generated scripts, audio, and videos.</p>
+            </a>
+            <a href="/settings" class="menu-item">
+                <h2>Settings</h2>
+                <p>Configure API keys and LLM model settings.</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

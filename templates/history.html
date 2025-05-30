@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Output History - Ecne AI Podcaster Control Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Output History</h1>
+        <p>Browse and manage all your generated scripts, audio, and videos.</p>
+
+        <a href="/" class="back-button">Back to Dashboard</a>
+
+        {% if output_files %}
+        <div class="output-list">
+            {% for file in output_files %}
+            <div class="output-item">
+                <h3>{{ file.name }}</h3>
+                <p><strong>Type:</strong> {{ file.type | capitalize }}</p>
+                <p><strong>Path:</strong> {{ file.path }}</p>
+                <p><strong>Size:</strong> {{ "%.2f" | format(file.size / 1024 / 1024) }} MB</p>
+                <p><strong>Last Modified:</strong> {{ file.modified }}</p>
+                <a href="{{ url_for('serve_output', filename=file.path) }}" download class="button">Download</a>
+                {% if file.type == 'video' %}
+                <a href="{{ url_for('serve_output', filename=file.path) }}" target="_blank" class="button">View/Play Video</a>
+                {% elif file.type == 'script' %}
+                <a href="{{ url_for('serve_output', filename=file.path) }}" target="_blank" class="button">View Script</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No generated output files found yet.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
