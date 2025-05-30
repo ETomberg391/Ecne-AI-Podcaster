@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecne AI Podcaster Control Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Ecne AI Podcaster Control Panel</h1>
+        <p>Welcome to your centralized hub for generating podcast scripts and audio/video content.</p>
+
+        <div class="menu-grid">
+            <a href="/script_builder" class="menu-item">
+                <h2>Generate Script</h2>
+                <p>Create new podcast scripts using AI and various data sources.</p>
+            </a>
+            <a href="/podcast_builder" class="menu-item">
+                <h2>Generate Podcast (Audio/Video)</h2>
+                <p>Turn your scripts into full audio and video podcasts.</p>
+            </a>
+            <a href="/history" class="menu-item">
+                <h2>History / View Outputs</h2>
+                <p>Browse and manage all your generated scripts, audio, and videos.</p>
+            </a>
+            <a href="/settings" class="menu-item">
+                <h2>Settings</h2>
+                <p>Configure API keys and LLM model settings.</p>
+            </a>
+        </div>
+
+        <!-- Docker Status Widget -->
+        <div class="docker-status-widget" id="docker-status-widget">
+            <h3>🐳 Orpheus TTS Service Status</h3>
+            <div class="status-indicator" id="docker-status-indicator">
+                <span class="status-dot" id="docker-status-dot"></span>
+                <span class="status-text" id="docker-status-text">Checking...</span>
+            </div>
+            <div class="docker-controls" id="docker-controls" style="display: none;">
+                <button id="docker-start-btn" class="docker-btn start-btn">Start Service</button>
+                <button id="docker-stop-btn" class="docker-btn stop-btn">Stop Service</button>
+                <a href="http://127.0.0.1:5005" target="_blank" id="docker-ui-link" class="docker-btn ui-btn" style="display: none;">Open TTS UI</a>
+            </div>
+            <div class="docker-message" id="docker-message"></div>
+        </div>
+    </div>
+
+    <script>
+        // Docker Status Management
+        let dockerStatusInterval;
+
+        // Check Docker status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkDockerStatus();
+            // Check status every 30 seconds
+            dockerStatusInterval = setInterval(checkDockerStatus, 30000);
+        });
+
+        async function checkDockerStatus() {
+            try {
+                const response = await fetch('/docker/status');
+                const data = await response.json();
+                updateDockerUI(data);
+            } catch (error) {
+                console.error('Error checking Docker status:', error);
+                updateDockerUI({
+                    status: 'error',
+                    message: 'Failed to check Docker status',
+                    containers: []
+                });
+            }
+        }
+
+        function updateDockerUI(data) {
+            const statusDot = document.getElementById('docker-status-dot');
+            const statusText = document.getElementById('docker-status-text');
+            const controls = document.getElementById('docker-controls');
+            const startBtn = document.getElementById('docker-start-btn');
+            const stopBtn = document.getElementById('docker-stop-btn');
+            const uiLink = document.getElementById('docker-ui-link');
+            const message = document.getElementById('docker-message');
+
+            // Update status indicator
+            statusDot.className = 'status-dot';
+            switch (data.status) {
+                case 'running':
+                    statusDot.classList.add('status-running');
+                    statusText.textContent = `Running (${data.containers.filter(c => c.running).length} containers)`;
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    uiLink.style.display = 'inline-block';
+                    break;
+                case 'stopped':
+                    statusDot.classList.add('status-stopped');
+                    statusText.textContent = 'Stopped';
+                    startBtn.style.display = 'inline-block';
+                    stopBtn.style.display = 'none';
+                    uiLink.style.display = 'none';
+                    break;
+                case 'building':
+                    statusDot.classList.add('status-building');
+                    statusText.textContent = 'Starting/Building...';
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'inline-block';
+                    uiLink.style.display = 'none';
+                    break;
+                case 'not_installed':
+                    statusDot.classList.add('status-error');
+                    statusText.textContent = 'Not Installed';
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'none';
+                    uiLink.style.display = 'none';
+                    break;
+                default:
+                    statusDot.classList.add('status-error');
+                    statusText.textContent = 'Error';
+                    startBtn.style.display = 'none';
+                    stopBtn.style.display = 'none';
+                    uiLink.style.display = 'none';
+                    break;
+            }
+
+            // Show controls if Docker is available
+            if (data.status !== 'not_installed' && data.status !== 'error') {
+                controls.style.display = 'block';
+            } else {
+                controls.style.display = 'none';
+            }
+
+            // Update message
+            message.textContent = data.message;
+        }
+
+        // Start Docker containers
+        document.getElementById('docker-start-btn').addEventListener('click', async function() {
+            if (!confirm('Do you want to start the Orpheus TTS Docker service? This may take a few minutes.')) {
+                return;
+            }
+
+            const button = this;
+            const originalText = button.textContent;
+            button.textContent = 'Starting...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/docker/start', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('docker-message').textContent = data.message;
+                    // Check status after a short delay
+                    setTimeout(checkDockerStatus, 3000);
+                } else {
+                    alert('Failed to start Docker service: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error starting Docker:', error);
+                alert('Error starting Docker service: ' + error.message);
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        });
+
+        // Stop Docker containers
+        document.getElementById('docker-stop-btn').addEventListener('click', async function() {
+            if (!confirm('Do you want to stop the Orpheus TTS Docker service?')) {
+                return;
+            }
+
+            const button = this;
+            const originalText = button.textContent;
+            button.textContent = 'Stopping...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/docker/stop', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    document.getElementById('docker-message').textContent = data.message;
+                    // Check status after a short delay
+                    setTimeout(checkDockerStatus, 2000);
+                } else {
+                    alert('Failed to stop Docker service: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error stopping Docker:', error);
+                alert('Error stopping Docker service: ' + error.message);
+            } finally {
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

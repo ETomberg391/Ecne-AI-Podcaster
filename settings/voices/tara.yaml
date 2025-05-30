@@ -1,5 +1,5 @@
 # settings/voices/tara.yaml
-gain_factor: 0.8
+gain_factor: 1
 trim_end_ms: 120
 nr_level: 35
 compress_thresh: 0.03

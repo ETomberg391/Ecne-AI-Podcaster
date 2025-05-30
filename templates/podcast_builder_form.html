@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast Audio/Video Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Podcast Audio/Video Generator</h1>
+
+        <nav>
+            <a href="{{ url_for('index') }}" class="back-button">Back to Dashboard</a>
+        </nav>
+
+        <form id="podcast-form">
+
+            <h2>Script Input</h2>
+            <div class="form-group">
+                <label for="script_select">Select Script:</label>
+                <select id="script_select" name="script_select">
+                    <option value="">Loading scripts...</option>
+                </select>
+            </div>
+            <div class="form-group" id="script_file_group" style="display: none;">
+                <label for="script_file">Upload Script File (.txt):</label>
+                <input type="file" id="script_file" name="script_file" accept=".txt">
+            </div>
+
+            <h2>Voice Settings</h2>
+            <div class="form-group">
+                <label for="host_voice">Host Voice (for script mode):</label>
+                <input type="text" id="host_voice" name="host_voice" value="leo">
+            </div>
+            <div class="form-group">
+                <label for="guest_voice">Guest Voice (for script mode):</label>
+                <input type="text" id="guest_voice" name="guest_voice" value="tara">
+            </div>
+            <div class="form-group">
+                <label for="voice">Voice (for single input mode):</label>
+                <input type="text" id="voice" name="voice" value="tara">
+            </div>
+            <div class="form-group">
+                <label for="speed">Speech Speed Factor (0.5 to 1.5):</label>
+                <input type="number" id="speed" name="speed" value="1.0" step="0.1" min="0.5" max="1.5">
+            </div>
+            <div class="form-group">
+                <label for="silence">Silence Duration between segments (seconds):</label>
+                <input type="number" id="silence" name="silence" value="1.0" step="0.1" min="0.0">
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="guest_breakup" name="guest_breakup">
+                <label for="guest_breakup">Break Guest dialogue into sentences</label>
+            </div>
+
+            <button type="button" class="collapsible">Advanced Settings</button>
+            <div class="content">
+                <h3>Quality Presets</h3>
+                <div class="form-group">
+                    <label for="quality_preset">Select Quality Preset:</label>
+                    <select id="quality_preset" name="quality_preset">
+                        <option value="">Custom</option>
+                        <option value="low">Low Quality</option>
+                        <option value="medium" selected>Medium Quality</option>
+                        <option value="high">High Quality</option>
+                    </select>
+                </div>
+
+                <h3>API Settings</h3>
+                <div class="form-group">
+                    <label for="api_host">Orpheus-FastAPI Host:</label>
+                    <input type="text" id="api_host" name="api_host" value="127.0.0.1">
+                </div>
+                <div class="form-group">
+                    <label for="port">Orpheus-FastAPI Port:</label>
+                    <input type="number" id="port" name="port" value="5005">
+                </div>
+
+                <h3>Output & Video Settings</h3>
+                <div class="form-group">
+                    <label for="output_filename">Output Base Filename (Optional):</label>
+                    <input type="text" id="output_filename" name="output_filename" placeholder="e.g., my_podcast">
+                </div>
+                <div class="form-group">
+                    <label for="video_resolution">Video Resolution:</label>
+                    <select id="video_resolution" name="video_resolution">
+                        <option value="1280x720">1280x720 (HD)</option>
+                        <option value="1920x1080" selected>1920x1080 (Full HD)</option>
+                        <option value="3840x2160">3840x2160 (4K UHD)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video_fps">Video FPS:</label>
+                    <select id="video_fps" name="video_fps">
+                        <option value="24">24</option>
+                        <option value="30" selected>30</option>
+                        <option value="60">60</option>
+                        <option value="90">90</option>
+                        <option value="120">120</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video_character_scale">Character Scale:</label>
+                    <input type="number" id="video_character_scale" name="video_character_scale" value="1.0" step="0.1" min="0.1">
+                </div>
+                <div class="form-group">
+                    <label for="video_fade">Video Fade Duration (seconds):</label>
+                    <input type="number" id="video_fade" name="video_fade" value="1.0" step="0.1" min="0.0">
+                </div>
+                <div class="form-group">
+                    <label for="video_intermediate_preset">Intermediate Encoding Preset:</label>
+                    <select id="video_intermediate_preset" name="video_intermediate_preset">
+                        <option value="ultrafast">ultrafast</option>
+                        <option value="medium" selected>medium</option>
+                        <option value="slow">slow</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video_intermediate_crf">Intermediate CRF (0-51):</label>
+                    <select id="video_intermediate_crf" name="video_intermediate_crf">
+                        <option value="28">Low Quality (CRF 28)</option>
+                        <option value="23" selected>Medium Quality (CRF 23)</option>
+                        <option value="18">High Quality (CRF 18)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video_final_audio_bitrate">Final Audio Bitrate:</label>
+                    <select id="video_final_audio_bitrate" name="video_final_audio_bitrate">
+                        <option value="96k">96k (Low Quality)</option>
+                        <option value="192k" selected>192k (Medium Quality)</option>
+                        <option value="320k">320k (High Quality)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="video_workers">Video Workers (CPU count default):</label>
+                    <input type="number" id="video_workers" name="video_workers" min="1">
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="video_keep_temp" name="video_keep_temp">
+                    <label for="video_keep_temp">Keep Temporary Video Files</label>
+                </div>
+            </div>
+
+            <button type="submit" id="generate-podcast-button">Generate Podcast</button>
+            <button type="button" id="stop-podcast-button" style="background-color: #dc3545; display: none;">Stop Process</button>
+        </form>
+
+        <div id="podcast-results" style="display: none;">
+            <h2>Result</h2>
+            <p>Podcast generated successfully!</p>
+            <div id="podcast-output-links"></div>
+        </div>
+    </div>
+
+    <!-- Progress Modal Overlay -->
+    <div id="podcast-progress-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Generating Podcast...</h2>
+            <div class="spinner"></div>
+            <p id="podcast-progress-message">Initializing...</p>
+            <pre id="podcast-console-output"></pre>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

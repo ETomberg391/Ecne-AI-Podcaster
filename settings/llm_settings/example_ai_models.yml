@@ -11,8 +11,7 @@ default_model:
 # Configuration for Gemini 2.0 Flash (Experimental)
 gemini_flash:
   api_endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/"
-  api_key: "Somethingsomethinggminigapikey"
-  model: "gemini-2.0-flash-001"
-  temperature: 0.8
-  max_tokens: 8192
+  api_key: ""
+  model: "gemini-2.5-flash-preview-05-20"
+  max_tokens: 65536
   # top_p: 0.95 # Optional parameter

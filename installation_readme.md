@@ -28,7 +28,7 @@ The script warns that the *host* Python scripts (`mainv3.py`, `orpheus_tts.py`) 
 *   `python3-tk` (for Tkinter GUI elements)
 *   `libsndfile1` (for audio file handling)
 *   `portaudio19-dev` (for audio I/O)
-*   Selenium WebDriver (requires a browser like Chrome and its corresponding `chromedriver` in the system PATH) - *Note: The script does NOT install these, only warns about them.*
+*   Selenium WebDriver (requires a browser like Chrome and its corresponding `chromedriver` in the system PATH) - *Note: The script attempts to install these.*
 
 ### GPU-Specific Checks
 
