@@ -9,6 +9,7 @@ import yaml
 from dotenv import load_dotenv, set_key
 import traceback
 import datetime
+import time
 
 # Load environment variables from .env file at the start
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -143,6 +144,167 @@ def find_output_files(base_dir):
             print(f"Error accessing archive directory {archive_dir}: {e}")
 
     return final_files
+
+# --- Docker Management Functions ---
+
+def get_docker_path():
+    """Get the path to the Orpheus-FastAPI Docker setup directory."""
+    return os.path.join(os.path.dirname(__file__), 'orpheus_tts_setup', 'Orpheus-FastAPI')
+
+def check_docker_status():
+    """Check if Orpheus-FastAPI Docker containers are running."""
+    docker_path = get_docker_path()
+    if not os.path.exists(docker_path):
+        return {
+            'status': 'not_installed',
+            'message': 'Orpheus-FastAPI not found. Please run the installer first.',
+            'containers': []
+        }
+    
+    try:
+        # Check if docker-compose is running
+        result = subprocess.run(['docker-compose', '-f', 'docker-compose-gpu.yml', 'ps'],
+                               cwd=docker_path, capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0:
+            output_lines = result.stdout.strip().split('\n')
+            containers = []
+            building_containers = []
+            
+            # Parse docker-compose ps output
+            for line in output_lines[1:]:  # Skip header
+                if line.strip():
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        name = parts[0]
+                        status = ' '.join(parts[3:])  # Status might have multiple words
+                        is_running = 'Up' in status
+                        is_building = any(keyword in status for keyword in ['Restarting', 'Starting', 'Created'])
+                        
+                        containers.append({
+                            'name': name,
+                            'status': status,
+                            'running': is_running,
+                            'building': is_building
+                        })
+                        
+                        if is_building:
+                            building_containers.append(name)
+            
+            # Check if any containers are running
+            running_containers = [c for c in containers if c['running']]
+            
+            if running_containers:
+                return {
+                    'status': 'running',
+                    'message': f'{len(running_containers)} container(s) running',
+                    'containers': containers
+                }
+            elif building_containers:
+                return {
+                    'status': 'building',
+                    'message': f'Containers starting/building ({len(building_containers)} containers). Please wait...',
+                    'containers': containers
+                }
+            else:
+                return {
+                    'status': 'stopped',
+                    'message': 'Docker containers are stopped',
+                    'containers': containers
+                }
+        else:
+            return {
+                'status': 'error',
+                'message': f'Docker command failed: {result.stderr}',
+                'containers': []
+            }
+    
+    except subprocess.TimeoutExpired:
+        return {
+            'status': 'error',
+            'message': 'Docker command timed out',
+            'containers': []
+        }
+    except FileNotFoundError:
+        return {
+            'status': 'error',
+            'message': 'Docker or docker-compose not found. Please install Docker.',
+            'containers': []
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Error checking Docker status: {str(e)}',
+            'containers': []
+        }
+
+def start_docker_containers():
+    """Start Orpheus-FastAPI Docker containers in detached mode."""
+    docker_path = get_docker_path()
+    if not os.path.exists(docker_path):
+        return {'success': False, 'message': 'Orpheus-FastAPI not found. Please run the installer first.'}
+    
+    try:
+        # Start containers in detached mode with longer timeout for initial builds
+        result = subprocess.run(['docker-compose', '-f', 'docker-compose-gpu.yml', 'up', '-d'],
+                               cwd=docker_path, capture_output=True, text=True, timeout=300)  # 5 minutes for initial build
+        
+        if result.returncode == 0:
+            return {
+                'success': True,
+                'message': 'Docker containers started successfully. If this is the first run, it may take several minutes to download models and build containers. Services will be available at http://127.0.0.1:5005 when ready.',
+                'output': result.stdout
+            }
+        else:
+            # Check if it's a build/download process that's still running
+            if 'Pulling' in result.stderr or 'Building' in result.stderr or 'Downloading' in result.stderr:
+                return {
+                    'success': True,
+                    'message': 'Docker containers are building/downloading. This may take 10-15 minutes for the first run (downloading 4GB+ models). Check back in a few minutes.',
+                    'output': result.stderr
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': f'Failed to start Docker containers: {result.stderr}',
+                    'output': result.stderr
+                }
+    
+    except subprocess.TimeoutExpired:
+        return {
+            'success': True,  # Changed to True since timeout during build is normal
+            'message': 'Docker start command timed out (5 minutes). This is normal for first-time setup. Containers are likely still building/downloading in the background. Check status in a few minutes.'
+        }
+    except Exception as e:
+        return {'success': False, 'message': f'Error starting Docker containers: {str(e)}'}
+
+def stop_docker_containers():
+    """Stop Orpheus-FastAPI Docker containers."""
+    docker_path = get_docker_path()
+    if not os.path.exists(docker_path):
+        return {'success': False, 'message': 'Orpheus-FastAPI not found.'}
+    
+    try:
+        result = subprocess.run(['docker-compose', '-f', 'docker-compose-gpu.yml', 'down'],
+                               cwd=docker_path, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode == 0:
+            return {
+                'success': True,
+                'message': 'Docker containers stopped successfully.',
+                'output': result.stdout
+            }
+        else:
+            return {
+                'success': False,
+                'message': f'Failed to stop Docker containers: {result.stderr}',
+                'output': result.stderr
+            }
+    
+    except subprocess.TimeoutExpired:
+        return {'success': False, 'message': 'Docker stop command timed out (30s).'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error stopping Docker containers: {str(e)}'}
 
 # --- Process Management Functions ---
 
@@ -654,6 +816,30 @@ def save_settings_route():
         if not llm_success:
             error_message += f"LLM Settings Save Failed: {llm_message}"
         return jsonify({"status": "error", "message": error_message.strip()}), 500
+
+@control_panel_app.route('/docker/status', methods=['GET'])
+def docker_status():
+    """Get the current status of Orpheus-FastAPI Docker containers."""
+    status = check_docker_status()
+    return jsonify(status)
+
+@control_panel_app.route('/docker/start', methods=['POST'])
+def docker_start():
+    """Start Orpheus-FastAPI Docker containers."""
+    result = start_docker_containers()
+    if result['success']:
+        return jsonify({"status": "success", "message": result['message']})
+    else:
+        return jsonify({"status": "error", "message": result['message']}), 500
+
+@control_panel_app.route('/docker/stop', methods=['POST'])
+def docker_stop():
+    """Stop Orpheus-FastAPI Docker containers."""
+    result = stop_docker_containers()
+    if result['success']:
+        return jsonify({"status": "success", "message": result['message']})
+    else:
+        return jsonify({"status": "error", "message": result['message']}), 500
 
 if __name__ == '__main__':
     control_panel_app.run(debug=True, port=5000)
