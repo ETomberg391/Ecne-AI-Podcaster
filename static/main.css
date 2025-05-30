@@ -373,3 +373,118 @@ nav a:hover {
 .back-button:hover {
     background-color: #5a6268;
 }
+
+/* Docker Status Widget Styles */
+.docker-status-widget {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.docker-status-widget h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 10px;
+    display: inline-block;
+}
+
+.status-dot.status-running {
+    background-color: #28a745;
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
+}
+
+.status-dot.status-stopped {
+    background-color: #ffc107;
+}
+
+.status-dot.status-building {
+    background-color: #17a2b8;
+    animation: pulse 2s infinite;
+}
+
+.status-dot.status-error {
+    background-color: #dc3545;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.status-text {
+    font-weight: bold;
+    color: #495057;
+}
+
+.docker-controls {
+    margin-bottom: 15px;
+}
+
+.docker-btn {
+    display: inline-block;
+    padding: 8px 16px;
+    margin-right: 10px;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.docker-btn.start-btn {
+    background-color: #28a745;
+    color: white;
+}
+
+.docker-btn.start-btn:hover {
+    background-color: #218838;
+}
+
+.docker-btn.stop-btn {
+    background-color: #dc3545;
+    color: white;
+}
+
+.docker-btn.stop-btn:hover {
+    background-color: #c82333;
+}
+
+.docker-btn.ui-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+.docker-btn.ui-btn:hover {
+    background-color: #0056b3;
+}
+
+.docker-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.docker-message {
+    font-size: 14px;
+    color: #6c757d;
+    font-style: italic;
+}
