@@ -699,6 +699,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         llmModelSelect.appendChild(option);
                     });
 
+                    // Add "Add New LLM Model" option at the end
+                    const addNewOption = document.createElement('option');
+                    addNewOption.value = 'add_new';
+                    addNewOption.textContent = 'Add New LLM Model';
+                    llmModelSelect.appendChild(addNewOption);
+
                     // Automatically select the first model if available and trigger change event
                     if (modelKeys.length > 0) {
                         llmModelSelect.value = modelKeys[0];
@@ -715,7 +721,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // --- Handle LLM Model Selection Change ---
         llmModelSelect.addEventListener('change', async function() {
             const selectedKey = this.value;
-            if (selectedKey) {
+            const llmAddNewSection = document.getElementById('llm-add-new-section');
+            
+            if (selectedKey === 'add_new') {
+                // Show Add New section, hide existing model details
+                if (llmAddNewSection) llmAddNewSection.style.display = 'block';
+                if (llmModelDetails) llmModelDetails.style.display = 'none';
+            } else if (selectedKey) {
+                // Hide Add New section, show existing model details
+                if (llmAddNewSection) llmAddNewSection.style.display = 'none';
+                
                 try {
                     const response = await fetch('/get_settings');
                     const data = await response.json();
@@ -754,6 +769,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
             } else {
+                // Nothing selected, hide both sections
+                if (llmAddNewSection) llmAddNewSection.style.display = 'none';
                 llmModelDetails.style.display = 'none';
             }
         });
@@ -816,51 +833,70 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // --- Handle Save LLM Settings Form Submission (for new model) ---
+        // --- Handle Add New LLM Model Button Click ---
+        const addNewLlmModelButton = document.getElementById('add-new-llm-model');
+        if (addNewLlmModelButton) {
+            addNewLlmModelButton.addEventListener('click', async function(event) {
+                event.preventDefault();
+
+                const newModelKey = document.getElementById('new-llm-key').value;
+
+                if (!newModelKey) {
+                    alert("Please provide a 'Configuration Name' to add a new LLM model.");
+                    return;
+                }
+
+                // Load existing settings first to merge changes
+                const existingSettingsResponse = await fetch('/get_settings');
+                const existingSettingsData = await existingSettingsResponse.json();
+                const currentLlmSettings = existingSettingsData.llm_settings || {};
+
+                if (currentLlmSettings.hasOwnProperty(newModelKey)) {
+                    alert(`Configuration name "${newModelKey}" already exists. Please use a different name or update the existing model.`);
+                    return;
+                }
+
+                const newModelSettings = {};
+                const llmAddNewSection = document.getElementById('llm-add-new-section');
+                llmAddNewSection.querySelectorAll('input[name^="new_"], textarea[name^="new_"]').forEach(input => {
+                    const originalName = input.name.replace('new_', '');
+                    if (originalName && originalName !== 'llm_key') { // Exclude the new_llm_key itself
+                        let value = input.value;
+                        if (originalName === 'tool_config') {
+                            try {
+                                value = value ? JSON.parse(value) : null;
+                            } catch (e) {
+                                console.error("Invalid JSON in New Tool Config:", e);
+                                alert("Invalid JSON in New Tool Config field.");
+                                throw new Error("Invalid JSON in New Tool Config");
+                            }
+                        } else if (input.type === 'number') {
+                            value = value ? parseFloat(value) : null;
+                            if (isNaN(value)) value = null;
+                        }
+                        newModelSettings[originalName] = value;
+                    }
+                });
+                currentLlmSettings[newModelKey] = newModelSettings;
+
+                await saveLlmSettings(currentLlmSettings);
+                
+                // Clear the add new form after successful save
+                llmAddNewSection.querySelectorAll('input, textarea').forEach(input => {
+                    input.value = '';
+                });
+                
+                // Switch back to the newly added model
+                llmModelSelect.value = newModelKey;
+                llmModelSelect.dispatchEvent(new Event('change'));
+            });
+        }
+
+        // --- Handle Save LLM Settings Form Submission (simplified) ---
         llmSettingsForm.addEventListener('submit', async function(event) {
             event.preventDefault();
-
-            const formData = new FormData(llmSettingsForm);
-            const newModelKey = formData.get('new_llm_key');
-
-            if (!newModelKey) {
-                alert("Please provide a 'New Model Key' to add a new LLM model.");
-                return;
-            }
-
-            // Load existing settings first to merge changes
-            const existingSettingsResponse = await fetch('/get_settings');
-            const existingSettingsData = await existingSettingsResponse.json();
-            const currentLlmSettings = existingSettingsData.llm_settings || {};
-
-            if (currentLlmSettings.hasOwnProperty(newModelKey)) {
-                alert(`Model key "${newModelKey}" already exists. Please use a different key or update the existing model.`);
-                return;
-            }
-
-            const newModelSettings = {};
-            llmSettingsForm.querySelectorAll('input[name^="new_"], textarea[name^="new_"]').forEach(input => {
-                const originalName = input.name.replace('new_', '');
-                if (originalName && originalName !== 'llm_key') { // Exclude the new_llm_key itself
-                    let value = input.value;
-                    if (originalName === 'tool_config') {
-                        try {
-                            value = JSON.parse(value);
-                        } catch (e) {
-                            console.error("Invalid JSON in New Tool Config:", e);
-                            alert("Invalid JSON in New Tool Config field.");
-                            throw new Error("Invalid JSON in New Tool Config");
-                        }
-                    } else if (input.type === 'number') {
-                        value = parseFloat(value);
-                        if (isNaN(value)) value = null;
-                    }
-                    newModelSettings[originalName] = value;
-                }
-            });
-            currentLlmSettings[newModelKey] = newModelSettings;
-
-            await saveLlmSettings(currentLlmSettings);
+            // This form submission is now handled by individual buttons
+            // We'll keep this for compatibility but it won't do much
         });
 
         // --- Handle Update LLM Model Button Click ---
