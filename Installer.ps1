@@ -102,6 +102,37 @@ function Test-Command {
 Write-Host "---------------------------------------------"
 Write-Host " Orpheus TTS GGUF Setup Script (Windows PowerShell Version) "
 Write-Host "---------------------------------------------"
+Write-Host ""
+Write-Host "=== INSTALLATION OVERVIEW ==="
+Write-Host "This installer may install the following components (with your consent):"
+Write-Host ""
+Write-Host "CORE REQUIREMENTS (automatically prompted if missing):"
+Write-Host "  • Git - Version control system"
+Write-Host "  • Python 3.11 - Programming language runtime"
+Write-Host "  • pip - Python package manager"
+Write-Host "  • FFMPEG - Audio/video processing tool"
+Write-Host ""
+Write-Host "CONTAINERIZATION (required for TTS service):"
+Write-Host "  • Docker Desktop - Container platform (~500MB-1GB)"
+Write-Host ""
+Write-Host "WEB AUTOMATION (required for web scraping):"
+Write-Host "  • Google Chrome - Web browser (~100-150MB)"
+Write-Host "  • ChromeDriver - Browser automation driver (auto-matched)"
+Write-Host ""
+Write-Host "DEVELOPMENT TOOLS (optional, improves compatibility):"
+Write-Host "  • Visual C++ Build Tools - C++ compiler for Python packages (~3-6GB)"
+Write-Host "  • Media Libraries - Enhanced codec support (~50-200MB)"
+Write-Host "  • pywin32 - Windows-specific Python extensions (~10-20MB)"
+Write-Host ""
+Write-Host "PYTHON ENVIRONMENT:"
+Write-Host "  • Virtual environment creation (host_venv)"
+Write-Host "  • Python packages from requirements_host.txt"
+Write-Host "  • NLTK data downloads"
+Write-Host ""
+Write-Host "Each installation will be presented with detailed information"
+Write-Host "and you can choose to accept or decline each component."
+Write-Host "---------------------------------------------"
+Write-Host ""
 
 # --- OS Detection and Package Manager Setup ---
 Write-Info "Detecting Windows version and package manager..."
@@ -187,7 +218,14 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     
     if ($PKG_MANAGER -and $INSTALL_CMD) {
         Write-Host ""
-        $installDocker = Read-Host "Docker is required to run the Orpheus TTS service. Do you want to install Docker Desktop using '$PKG_MANAGER'? [y/N]"
+        Write-Host "=== Docker Desktop Installation ==="
+        Write-Host "PURPOSE: Required to run the Orpheus TTS service containers"
+        Write-Host "COMPONENTS: Docker engine, Docker Compose, container runtime"
+        Write-Host "REQUIREMENTS: WSL2 (Windows Subsystem for Linux)"
+        Write-Host "SIZE: ~500MB-1GB download + installation space"
+        Write-Host "NOTE: May require computer restart and WSL2 setup"
+        Write-Host ""
+        $installDocker = Read-Host "Do you want to install Docker Desktop using '$PKG_MANAGER'? [y/N]"
         $installDocker = $installDocker.ToLower()
         
         if ($installDocker -eq "y") {
@@ -396,54 +434,325 @@ catch {
 Write-Info "Host Python environment setup complete."
 Write-Host ""
 
-# --- Chrome/ChromeDriver Installation ---
+# --- System Dependencies for Audio/Video Processing ---
+Write-Info "Checking system dependencies for audio/video processing..."
+
+# Check and install Visual C++ Build Tools (required for compiling Python packages like audioop-lts)
 if ($PKG_MANAGER -and $INSTALL_CMD) {
     Write-Host ""
-    $installChrome = Read-Host "Do you want to attempt to install/update Google Chrome using $PKG_MANAGER? (Browser is required for Selenium features) [y/N]"
-    $installChrome = $installChrome.ToLower()
+    Write-Host "=== Visual C++ Build Tools Installation ==="
+    Write-Host "PURPOSE: Required for compiling Python packages with C extensions"
+    Write-Host "PACKAGES: audioop-lts, scipy, numpy, soundfile, and other audio processing libraries"
+    Write-Host "SIZE: ~3-6GB download + installation space"
+    Write-Host "NOTE: May require computer restart after installation"
+    Write-Host ""
+    $installBuildTools = Read-Host "Do you want to install Visual C++ Build Tools? [y/N]"
+    $installBuildTools = $installBuildTools.ToLower()
     
-    if ($installChrome -eq "y") {
-        Write-Info "Attempting to install/update Chrome using $PKG_MANAGER..."
-        
+    if ($installBuildTools -eq "y") {
         try {
             switch ($PKG_MANAGER) {
                 "winget" {
-                    Write-Info "Installing Google Chrome using winget..."
-                    Invoke-Expression "$INSTALL_CMD Google.Chrome"
-                    $CHROME_INSTALLED_VIA_PKG_MANAGER = $true
+                    Write-Info "Installing Visual C++ Build Tools using winget..."
+                    # Install Visual Studio Build Tools which includes MSVC compiler
+                    Invoke-Expression "$INSTALL_CMD Microsoft.VisualStudio.2022.BuildTools"
                 }
                 "choco" {
-                    Write-Info "Installing Google Chrome using chocolatey..."
-                    Invoke-Expression "$INSTALL_CMD googlechrome"
-                    $CHROME_INSTALLED_VIA_PKG_MANAGER = $true
+                    Write-Info "Installing Visual C++ Build Tools using chocolatey..."
+                    Invoke-Expression "$INSTALL_CMD visualstudio2022buildtools"
+                    # Also install Windows SDK
+                    Invoke-Expression "$INSTALL_CMD windows-sdk-10-version-2004-all"
                 }
             }
-            Write-Info "Chrome installation attempt finished successfully."
+            Write-Info "Visual C++ Build Tools installation completed."
+            Write-Warning "You may need to restart your computer for the build tools to be fully available."
         }
         catch {
-            Write-Warning "Chrome installation attempt failed: $_"
-        }
-        
-        # ChromeDriver setup for Windows
-        Write-Info "Setting up ChromeDriver..."
-        try {
-            # Install ChromeDriver via package manager
-            switch ($PKG_MANAGER) {
-                "winget" {
-                    Invoke-Expression "$INSTALL_CMD Google.ChromeDriver"
-                }
-                "choco" {
-                    Invoke-Expression "$INSTALL_CMD chromedriver"
-                }
-            }
-            Write-Info "ChromeDriver installation attempt finished."
-        }
-        catch {
-            Write-Warning "ChromeDriver installation failed. You may need to install it manually or use webdriver-manager in Python."
+            Write-Warning "Visual C++ Build Tools installation failed: $_"
+            Write-Warning "Some Python packages requiring compilation may fail to install."
         }
     }
     else {
-        Write-Info "Skipping automatic Chrome/ChromeDriver installation."
+        Write-Warning "Visual C++ Build Tools not installed. Some Python packages may fail to compile."
+    }
+}
+
+# Check and install additional media libraries
+if ($PKG_MANAGER -and $INSTALL_CMD) {
+    Write-Host ""
+    Write-Host "=== Media Libraries Installation ==="
+    Write-Host "PURPOSE: Enhanced codec support for video/audio processing"
+    Write-Host "PACKAGES: HEIF/HEVC video extensions (winget) or K-Lite Codec Pack (chocolatey)"
+    Write-Host "BENEFITS: Better support for moviepy, pygame, and multimedia formats"
+    Write-Host "SIZE: 50-200MB depending on package manager"
+    Write-Host ""
+    $installMediaLibs = Read-Host "Do you want to install additional media libraries? [y/N]"
+    $installMediaLibs = $installMediaLibs.ToLower()
+    
+    if ($installMediaLibs -eq "y") {
+        try {
+            switch ($PKG_MANAGER) {
+                "winget" {
+                    Write-Info "Installing media libraries using winget..."
+                    # Install media codecs and libraries that might be useful
+                    Invoke-Expression "$INSTALL_CMD 9PMMSR1CGPWG" # HEIF Image Extensions
+                    Invoke-Expression "$INSTALL_CMD 9N4WGH0Z6VHQ" # HEVC Video Extensions
+                }
+                "choco" {
+                    Write-Info "Installing media libraries using chocolatey..."
+                    # Install K-Lite Codec Pack for comprehensive media support
+                    Invoke-Expression "$INSTALL_CMD k-litecodecpackfull"
+                }
+            }
+            Write-Info "Media libraries installation completed."
+        }
+        catch {
+            Write-Warning "Media libraries installation failed: $_"
+        }
+    }
+}
+
+# Install additional Python packages that might help with system integration
+Write-Host ""
+Write-Host "=== Python Windows Integration Package ==="
+Write-Host "PURPOSE: Windows-specific Python extensions for better OS integration"
+Write-Host "PACKAGE: pywin32 (Windows API access, COM objects, services)"
+Write-Host "BENEFITS: Enhanced file operations, system integration, GUI features"
+Write-Host "SIZE: ~10-20MB"
+Write-Host ""
+$installPywin32 = Read-Host "Do you want to install pywin32 for better Windows integration? [Y/n]"
+$installPywin32 = $installPywin32.ToLower()
+
+if ($installPywin32 -ne "n") {
+    Write-Info "Installing pywin32..."
+    try {
+        & ".\host_venv\Scripts\pip.exe" install pywin32
+        Write-Info "pywin32 installed successfully (Windows-specific Python extensions)."
+    }
+    catch {
+        Write-Warning "Failed to install pywin32: $_"
+    }
+}
+else {
+    Write-Info "Skipping pywin32 installation."
+}
+
+# Verify critical Python packages can be imported
+Write-Info "Verifying critical Python packages..."
+$packagesToTest = @(
+    @("soundfile", "Audio file processing"),
+    @("pygame", "Audio/Video multimedia"),
+    @("PIL", "Image processing (Pillow)"),
+    @("matplotlib", "Plotting and visualization"),
+    @("selenium", "Web automation"),
+    @("nltk", "Natural language processing")
+)
+
+foreach ($package in $packagesToTest) {
+    $packageName = $package[0]
+    $description = $package[1]
+    try {
+        $testResult = & ".\host_venv\Scripts\python.exe" -c "import $packageName; print('OK')" 2>$null
+        if ($testResult -eq "OK") {
+            Write-Info "✅ $packageName ($description) - Import successful"
+        }
+        else {
+            Write-Warning "⚠️ $packageName ($description) - Import failed"
+        }
+    }
+    catch {
+        Write-Warning "⚠️ $packageName ($description) - Import test failed: $_"
+    }
+}
+
+
+# --- Chrome Detection and ChromeDriver Installation ---
+$CHROMEDRIVER_PATH = ".\host_venv\Scripts\chromedriver.exe"
+
+# Function to get Chrome version
+function Get-ChromeVersion {
+    try {
+        # Try common Chrome installation paths
+        $chromePaths = @(
+            "${env:ProgramFiles}\Google\Chrome\Application\chrome.exe",
+            "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+            "${env:LOCALAPPDATA}\Google\Chrome\Application\chrome.exe"
+        )
+        
+        foreach ($path in $chromePaths) {
+            if (Test-Path $path) {
+                $versionInfo = (Get-ItemProperty $path).VersionInfo.ProductVersion
+                return $versionInfo
+            }
+        }
+        return $null
+    }
+    catch {
+        return $null
+    }
+}
+
+# Function to get ChromeDriver version
+function Get-ChromeDriverVersion {
+    if (Test-Path $CHROMEDRIVER_PATH) {
+        try {
+            $output = & $CHROMEDRIVER_PATH --version 2>$null
+            if ($output -match "ChromeDriver (\d+\.\d+\.\d+\.\d+)") {
+                return $matches[1]
+            }
+        }
+        catch {
+            return $null
+        }
+    }
+    return $null
+}
+
+# Function to download and install ChromeDriver
+function Install-ChromeDriver {
+    param([string]$ChromeVersion)
+    
+    try {
+        $majorVersion = $ChromeVersion.Split('.')[0]
+        Write-Info "Downloading ChromeDriver for Chrome version $majorVersion..."
+        
+        # Use Chrome for Testing API to get the correct ChromeDriver
+        $apiUrl = "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json"
+        $response = Invoke-RestMethod -Uri $apiUrl -ErrorAction Stop
+        
+        # Get the download URL for the major version
+        $downloadUrl = $response.milestones.$majorVersion.downloads.chromedriver |
+                      Where-Object { $_.platform -eq "win64" } |
+                      Select-Object -ExpandProperty url
+        
+        if (-not $downloadUrl) {
+            Write-Warning "Could not find ChromeDriver download URL for Chrome version $majorVersion"
+            return $false
+        }
+        
+        $tempZip = [System.IO.Path]::GetTempFileName() + ".zip"
+        $tempExtract = [System.IO.Path]::GetTempPath() + "chromedriver_extract"
+        
+        Write-Info "Downloading from: $downloadUrl"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $tempZip -ErrorAction Stop
+        
+        # Clean up and create extraction directory
+        if (Test-Path $tempExtract) { Remove-Item $tempExtract -Recurse -Force }
+        New-Item -ItemType Directory -Path $tempExtract -Force | Out-Null
+        
+        # Extract the zip file
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($tempZip, $tempExtract)
+        
+        # Find the chromedriver.exe file (it's usually in a subdirectory)
+        $chromedriverExe = Get-ChildItem -Path $tempExtract -Name "chromedriver.exe" -Recurse | Select-Object -First 1
+        if (-not $chromedriverExe) {
+            Write-Warning "Could not find chromedriver.exe in downloaded archive"
+            return $false
+        }
+        
+        $sourcePath = Join-Path $tempExtract $chromedriverExe.FullName.Replace($tempExtract, "").TrimStart('\')
+        
+        # Ensure the target directory exists
+        $targetDir = Split-Path $CHROMEDRIVER_PATH -Parent
+        if (-not (Test-Path $targetDir)) {
+            New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+        }
+        
+        # Copy chromedriver to host_venv/Scripts
+        Copy-Item $sourcePath $CHROMEDRIVER_PATH -Force
+        
+        # Clean up temporary files
+        Remove-Item $tempZip -Force -ErrorAction SilentlyContinue
+        Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
+        
+        Write-Info "ChromeDriver installed successfully to $CHROMEDRIVER_PATH"
+        return $true
+    }
+    catch {
+        Write-Warning "Failed to download/install ChromeDriver: $_"
+        return $false
+    }
+}
+
+Write-Info "Checking for Google Chrome installation..."
+$chromeVersion = Get-ChromeVersion
+
+if ($chromeVersion) {
+    Write-Info "Found Google Chrome version: $chromeVersion"
+    
+    # Check if ChromeDriver exists and matches
+    $driverVersion = Get-ChromeDriverVersion
+    $chromeMajor = $chromeVersion.Split('.')[0]
+    
+    if ($driverVersion) {
+        $driverMajor = $driverVersion.Split('.')[0]
+        Write-Info "Found ChromeDriver version: $driverVersion"
+        
+        if ($chromeMajor -eq $driverMajor) {
+            Write-Info "ChromeDriver version matches Chrome. No action needed."
+        }
+        else {
+            Write-Warning "ChromeDriver version mismatch. Installing matching version..."
+            Install-ChromeDriver -ChromeVersion $chromeVersion
+        }
+    }
+    else {
+        Write-Info "ChromeDriver not found in host_venv. Installing matching version..."
+        Install-ChromeDriver -ChromeVersion $chromeVersion
+    }
+}
+else {
+    Write-Warning "Google Chrome not found on this system."
+    if ($PKG_MANAGER -and $INSTALL_CMD) {
+        Write-Host ""
+        Write-Host "=== Google Chrome Installation ==="
+        Write-Host "PURPOSE: Required for web automation and Selenium features"
+        Write-Host "FEATURES: Web scraping, automated browsing, content extraction"
+        Write-Host "INCLUDES: Automatic matching ChromeDriver installation"
+        Write-Host "SIZE: ~100-150MB download + installation space"
+        Write-Host "NOTE: ChromeDriver will be installed to host_venv after Chrome installation"
+        Write-Host ""
+        $installChrome = Read-Host "Do you want to install Google Chrome using $PKG_MANAGER? [y/N]"
+        $installChrome = $installChrome.ToLower()
+        
+        if ($installChrome -eq "y") {
+            try {
+                switch ($PKG_MANAGER) {
+                    "winget" {
+                        Write-Info "Installing Google Chrome using winget..."
+                        Invoke-Expression "$INSTALL_CMD Google.Chrome"
+                    }
+                    "choco" {
+                        Write-Info "Installing Google Chrome using chocolatey..."
+                        Invoke-Expression "$INSTALL_CMD googlechrome"
+                    }
+                }
+                Write-Info "Chrome installation completed. Checking version..."
+                
+                # Wait a moment for installation to complete
+                Start-Sleep -Seconds 3
+                $chromeVersion = Get-ChromeVersion
+                
+                if ($chromeVersion) {
+                    Write-Info "Chrome installed successfully. Version: $chromeVersion"
+                    Write-Info "Installing matching ChromeDriver..."
+                    Install-ChromeDriver -ChromeVersion $chromeVersion
+                }
+                else {
+                    Write-Warning "Chrome installation may have failed or Chrome not found in expected location."
+                }
+            }
+            catch {
+                Write-Warning "Chrome installation failed: $_"
+            }
+        }
+        else {
+            Write-Warning "Chrome is required for Selenium features. Please install manually if needed."
+        }
+    }
+    else {
+        Write-Warning "No package manager available. Please install Chrome manually for Selenium features."
     }
 }
 
