@@ -7,6 +7,7 @@ import tempfile
 import shutil
 import shlex
 import subprocess # Added for subprocess.run
+import time # Added for retry delays
 from functions.tts.utils import load_voice_config
 
 # Override print function to force immediate flushing for real-time output
@@ -14,6 +15,64 @@ original_print = print
 def print(*args, **kwargs):
     kwargs.setdefault('flush', True)
     return original_print(*args, **kwargs)
+
+def make_tts_request_with_retry(api_url, payload, headers, max_retries=3, timeout=180):
+    """
+    Makes a TTS API request with retry logic and exponential backoff.
+    
+    Args:
+        api_url (str): The API endpoint URL
+        payload (dict): Request payload
+        headers (dict): Request headers
+        max_retries (int): Maximum number of retry attempts (default: 3)
+        timeout (int): Request timeout in seconds (default: 180)
+    
+    Returns:
+        requests.Response: Successful response object
+        
+    Raises:
+        requests.exceptions.RequestException: If all retries fail
+    """
+    for attempt in range(max_retries + 1):  # +1 for initial attempt
+        try:
+            if attempt > 0:
+                # Exponential backoff: wait 2^attempt seconds (2, 4, 8 seconds)
+                wait_time = 2 ** attempt
+                print(f"   Retry attempt {attempt}/{max_retries} in {wait_time} seconds...")
+                time.sleep(wait_time)
+            
+            print(f"-> Making TTS request to {api_url} (attempt {attempt + 1}/{max_retries + 1})")
+            response = requests.post(api_url, json=payload, headers=headers, timeout=timeout)
+            response.raise_for_status()
+            
+            if response.content and len(response.content) > 44:  # Valid audio response
+                print(f"   ✅ SUCCESS on attempt {attempt + 1}")
+                return response
+            else:
+                raise requests.exceptions.RequestException(f"Empty or invalid audio response (Size: {len(response.content)} bytes)")
+                
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"   ❌ Network error on attempt {attempt + 1}: {e}")
+            if attempt == max_retries:
+                raise e
+            continue
+            
+        except requests.exceptions.HTTPError as e:
+            print(f"   ❌ HTTP error on attempt {attempt + 1}: {e}")
+            if response and response.text:
+                print(f"   Response content: {response.text}")
+            if attempt == max_retries:
+                raise e
+            continue
+            
+        except requests.exceptions.RequestException as e:
+            print(f"   ❌ Request error on attempt {attempt + 1}: {e}")
+            if attempt == max_retries:
+                raise e
+            continue
+            
+    # This should never be reached, but just in case
+    raise requests.exceptions.RequestException(f"All {max_retries + 1} attempts failed")
 
 def generate_audio_segment(input_text, voice, speed, api_host, api_port, temp_dir,
                            # Parameters that can be overridden by function call
@@ -27,7 +86,9 @@ def generate_audio_segment(input_text, voice, speed, api_host, api_port, temp_di
                            compress_thresh=None,  # Explicit threshold or None
                            compress_ratio=None,   # Explicit ratio or None
                            norm_frame_len=None,   # Explicit frame len or None
-                           norm_gauss_size=None): # Explicit gauss size or None
+                           norm_gauss_size=None,  # Explicit gauss size or None
+                           max_retries=3,         # Maximum retry attempts
+                           timeout=180):          # Request timeout in seconds
     """
     Generates a single audio segment, optionally applies FFmpeg enhancement (de-ess, NR, norm),
     applies gain, trimming, and padding using pydub, and saves it to a temporary file.
@@ -98,32 +159,27 @@ def generate_audio_segment(input_text, voice, speed, api_host, api_port, temp_di
     try:
         response = None
         try:
-            # Try OpenAI-compatible endpoint first
-            print(f"-> Trying OpenAI-compatible endpoint at {api_url}")
-            response = requests.post(api_url, json=payload, headers=headers, timeout=180)
-            response.raise_for_status()
-        except (requests.exceptions.HTTPError, requests.exceptions.RequestException) as api_err:
-            print(f"!! OpenAI-compatible endpoint failed: {api_err}")
-            if response and response.text:
-                print(f"Response content: {response.text}")
+            # Try OpenAI-compatible endpoint first with retry logic
+            print(f"Attempting OpenAI-compatible endpoint at {api_url}")
+            response = make_tts_request_with_retry(api_url, payload, headers, max_retries=max_retries, timeout=timeout)
+        except requests.exceptions.RequestException as api_err:
+            print(f"!! OpenAI-compatible endpoint failed after all retries: {api_err}")
             
-            print("!! Attempting legacy endpoint fallback...")
-            response = None
+            print("!! Attempting legacy endpoint fallback with retries...")
             
-            # Fallback to legacy endpoint
+            # Fallback to legacy endpoint with retry logic
             legacy_url = f"http://{api_host}:{api_port}/speak"
             legacy_payload = {
                 "text": input_text,
                 "voice": voice
             }
             try:
-                print(f"-> Trying legacy endpoint at {legacy_url}")
-                response = requests.post(legacy_url, json=legacy_payload, headers=headers, timeout=180)
-                response.raise_for_status()
+                print(f"Attempting legacy endpoint at {legacy_url}")
+                response = make_tts_request_with_retry(legacy_url, legacy_payload, headers, max_retries=max_retries, timeout=timeout)
             except requests.exceptions.RequestException as legacy_err:
-                print(f"!! Legacy endpoint also failed: {legacy_err}")
-                if response and response.text:
-                    print(f"Response content: {response.text}")
+                print(f"!! Legacy endpoint also failed after all retries: {legacy_err}")
+                print(f"!! CRITICAL: Unable to generate audio segment after all retry attempts.")
+                print(f"!! Please check TTS server status and try again.")
                 return None, None
 
         if response.content and len(response.content) > 44: # Check for more than just header

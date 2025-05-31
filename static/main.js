@@ -264,7 +264,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.scripts.forEach(script => {
                         const option = document.createElement('option');
                         option.value = script.path;
-                        option.textContent = `${script.filename} (${script.modified})`;
+                        option.dataset.singleSpeaker = script.single_speaker || false;
+                        
+                        let displayText = `${script.filename} (${script.modified})`;
+                        if (script.single_speaker) {
+                            displayText += ' [Single Speaker]';
+                        }
+                        option.textContent = displayText;
                         scriptSelect.appendChild(option);
                     });
                 }
@@ -285,10 +291,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (scriptSelect) {
             scriptSelect.addEventListener('change', function() {
                 const selectedValue = this.value;
+                const selectedOption = this.options[this.selectedIndex];
+                const isSingleSpeaker = selectedOption.dataset.singleSpeaker === 'true';
+                
+                // Handle file upload visibility
                 if (selectedValue === 'custom') {
                     // Show file upload input
                     if (scriptFileGroup) scriptFileGroup.style.display = 'block';
                     if (scriptFile) scriptFile.required = true;
+                    // Reset single speaker UI for custom uploads
+                    showGuestVoiceOptions();
                 } else {
                     // Hide file upload input
                     if (scriptFileGroup) scriptFileGroup.style.display = 'none';
@@ -297,7 +309,47 @@ document.addEventListener('DOMContentLoaded', function() {
                         scriptFile.value = ''; // Clear any selected file
                     }
                 }
+                
+                // Handle single speaker mode UI
+                if (selectedValue && selectedValue !== 'custom') {
+                    if (isSingleSpeaker) {
+                        hideGuestVoiceOptions();
+                    } else {
+                        showGuestVoiceOptions();
+                    }
+                } else if (selectedValue === '') {
+                    // No script selected, show all options
+                    showGuestVoiceOptions();
+                }
             });
+        }
+
+        // Helper functions to show/hide guest voice options
+        function hideGuestVoiceOptions() {
+            const guestVoiceGroup = document.getElementById('guest_voice_group');
+            const guestBreakupGroup = document.querySelector('[for="guest_breakup"]')?.parentElement;
+            
+            if (guestVoiceGroup) {
+                guestVoiceGroup.style.display = 'none';
+            }
+            if (guestBreakupGroup) {
+                guestBreakupGroup.style.display = 'none';
+                // Uncheck guest breakup if hidden
+                const guestBreakupCheckbox = document.getElementById('guest_breakup');
+                if (guestBreakupCheckbox) guestBreakupCheckbox.checked = false;
+            }
+        }
+
+        function showGuestVoiceOptions() {
+            const guestVoiceGroup = document.getElementById('guest_voice_group');
+            const guestBreakupGroup = document.querySelector('[for="guest_breakup"]')?.parentElement;
+            
+            if (guestVoiceGroup) {
+                guestVoiceGroup.style.display = 'block';
+            }
+            if (guestBreakupGroup) {
+                guestBreakupGroup.style.display = 'block';
+            }
         }
 
         // Load scripts on page load

@@ -16,5 +16,5 @@ scipy
 pygame
 lxml_html_clean
 flask
-moviepy>=1.0.3
+moviepy==1.0.3
 # audioop-lts not available for Python 3.12 on Windows - using built-in audioop for now

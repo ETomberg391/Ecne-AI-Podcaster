@@ -20,6 +20,25 @@ TEMP_AUDIO_DIR = "temp_audio"
 FINAL_AUDIO_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "final")
 ARCHIVE_DIR = os.path.join(OUTPUT_DIR, "archive")
 
+def detect_single_speaker_script(script_path):
+    """
+    Detects if a script file contains only Host speakers (single speaker mode).
+    Returns True if only Host lines are found, False if Guest lines are also present.
+    """
+    try:
+        with open(script_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Check for Host and Guest lines
+        has_host = bool(re.search(r'^Host:', content, re.MULTILINE))
+        has_guest = bool(re.search(r'^Guest:', content, re.MULTILINE))
+        
+        # Single speaker if has Host but no Guest
+        return has_host and not has_guest
+    except Exception as e:
+        print(f"!! Error reading script file {script_path}: {e}")
+        return False
+
 def main():
     args = parse_tts_arguments()
 
@@ -40,7 +59,8 @@ def main():
     try:
         if args.input:
             temp_file, generated_sr = generate_audio_segment(
-                args.input, args.voice, args.speed, args.api_host, args.port, temp_dir
+                args.input, args.voice, args.speed, args.api_host, args.port, temp_dir,
+                max_retries=args.tts_max_retries, timeout=args.tts_timeout
             )
             if temp_file:
                 current_index = len(all_segment_files)
@@ -62,12 +82,21 @@ def main():
                     except Exception as e:
                         print(f"!! Error copying temp file {temp_file} to {output_path}: {e}")
             else:
-                print("!! Failed to generate audio for the input text.")
+                print("!! CRITICAL ERROR: Failed to generate audio for the input text after all retries.")
+                print("!! Please check TTS server status and try again.")
+                sys.exit(1)  # Exit with error rather than continuing with no audio
 
         elif args.script:
             if not os.path.exists(args.script):
                 print(f"!! Error: Script file not found: {args.script}")
                 sys.exit(1)
+
+            # Detect if this is a single speaker script
+            is_single_speaker = detect_single_speaker_script(args.script)
+            if is_single_speaker:
+                print("Detected single speaker script (Host only).")
+            else:
+                print("Detected two-speaker script (Host and Guest).")
 
             print("Pre-processing script...")
             parsed_segments = []
@@ -117,7 +146,8 @@ def main():
                 else:
                     print(f"  Segment {idx+1} (Line {line_num}): Last segment. Padding = 0ms")
 
-                if speaker == "guest" and args.guest_breakup:
+                # Guest breakup logic - skip if single speaker mode (no guest)
+                if speaker == "guest" and args.guest_breakup and not is_single_speaker:
                     import nltk # Import nltk here as it's only used in this block
                     sentences = [dialogue]
                     try:
@@ -151,7 +181,7 @@ def main():
                         voice = args.guest_voice
                         temp_file, generated_sr = generate_audio_segment(
                             combined_text, voice, args.speed, args.api_host, args.port, temp_dir,
-                            pad_end_ms=sub_pad_ms
+                            pad_end_ms=sub_pad_ms, max_retries=args.tts_max_retries, timeout=args.tts_timeout
                         )
 
                         if temp_file:
@@ -169,12 +199,20 @@ def main():
                             reviewable_indices.append(current_index)
                             text_segments_for_dev.append((combined_text, voice, sub_pad_ms))
                         else:
-                            print(f"!! Warning: Failed to generate sub-segment {sub_idx+1} for line {line_num}. Skipping.")
+                            print(f"!! CRITICAL ERROR: Failed to generate sub-segment {sub_idx+1} for line {line_num} after all retries.")
+                            print(f"!! This will result in an incomplete podcast. Please check TTS server and try again.")
+                            print(f"!! Stopping podcast generation to avoid incomplete output.")
+                            sys.exit(1)  # Exit with error rather than creating incomplete podcast
                 else:
-                    voice = args.host_voice if speaker == "host" else args.guest_voice
+                    # For single speaker mode, always use host voice
+                    if is_single_speaker:
+                        voice = args.host_voice
+                    else:
+                        voice = args.host_voice if speaker == "host" else args.guest_voice
+                    
                     temp_file, generated_sr = generate_audio_segment(
                         dialogue, voice, args.speed, args.api_host, args.port, temp_dir,
-                        pad_end_ms=pad_ms
+                        pad_end_ms=pad_ms, max_retries=args.tts_max_retries, timeout=args.tts_timeout
                     )
 
                     if temp_file:
@@ -192,7 +230,10 @@ def main():
                         reviewable_indices.append(current_index)
                         text_segments_for_dev.append((dialogue, voice, pad_ms))
                     else:
-                        print(f"!! Warning: Failed to generate segment for line {line_num}. Skipping.")
+                        print(f"!! CRITICAL ERROR: Failed to generate segment for line {line_num} after all retries.")
+                        print(f"!! This will result in an incomplete podcast. Please check TTS server and try again.")
+                        print(f"!! Stopping podcast generation to avoid incomplete output.")
+                        sys.exit(1)  # Exit with error rather than creating incomplete podcast
 
         files_to_concatenate = []
         if args.dev:

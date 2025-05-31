@@ -502,11 +502,16 @@ def get_available_scripts():
                 if file.endswith('.txt'):
                     file_path = os.path.join(scripts_dir, file)
                     file_stats = os.stat(file_path)
+                    
+                    # Detect if this is a single speaker script
+                    is_single_speaker = detect_single_speaker_script(file_path)
+                    
                     available_scripts.append({
                         'filename': file,
                         'path': f"scripts/{file}",
                         'modified': datetime.datetime.fromtimestamp(file_stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
-                        'size': file_stats.st_size
+                        'size': file_stats.st_size,
+                        'single_speaker': is_single_speaker
                     })
             # Sort by modification date, newest first
             available_scripts.sort(key=lambda x: x['modified'], reverse=True)
@@ -514,6 +519,25 @@ def get_available_scripts():
             print(f"Error listing scripts directory: {e}")
     
     return jsonify({"scripts": available_scripts})
+
+def detect_single_speaker_script(script_path):
+    """
+    Detects if a script file contains only Host speakers (single speaker mode).
+    Returns True if only Host lines are found, False if Guest lines are also present.
+    """
+    try:
+        with open(script_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Check for Host and Guest lines
+        has_host = bool(re.search(r'^Host:', content, re.MULTILINE))
+        has_guest = bool(re.search(r'^Guest:', content, re.MULTILINE))
+        
+        # Single speaker if has Host but no Guest
+        return has_host and not has_guest
+    except Exception as e:
+        print(f"Error reading script file {script_path}: {e}")
+        return False
 
 @control_panel_app.route('/settings')
 def settings_page():
@@ -620,6 +644,7 @@ def generate_script():
         'combine-keywords': '--combine-keywords', 'no-search': '--no-search',
         'reference-docs-summarize': '--reference-docs-summarize', 'skip_refinement': '--skip-refinement',
         'no-reddit': '--no-reddit', 'report': '--report', 'skip-audio': '--skip-audio',
+        'single-speaker': '--single-speaker',
     }
     for field, arg in boolean_flags.items():
         if data.get(field) == 'on':
@@ -717,17 +742,17 @@ def generate_podcast_video():
 
     arg_map = {
         'host_voice': '--host-voice', 'guest_voice': '--guest-voice', 'silence': '--silence',
-        'voice': '--voice', 'speed': '--speed', 'port': '--port', 'api_host': '--api-host',
+        'speed': '--speed', 'port': '--port', 'api_host': '--api-host',
         'output_filename': '--output', 'video_resolution': '--video-resolution',
         'video_fps': '--video-fps', 'video_character_scale': '--video-character-scale',
         'video_fade': '--video-fade', 'video_intermediate_preset': '--video-intermediate-preset',
         'video_intermediate_crf': '--video-intermediate-crf', 'video_final_audio_bitrate': '--video-final-audio-bitrate',
-        'video_workers': '--video-workers',
+        'video_workers': '--video-workers', 'tts_max_retries': '--tts-max-retries', 'tts_timeout': '--tts-timeout',
     }
     for field, arg in arg_map.items():
         value = data.get(field)
         if value:
-            if field in ['silence', 'speed', 'port', 'video_fps', 'video_character_scale', 'video_fade', 'video_intermediate_crf', 'video_workers']:
+            if field in ['silence', 'speed', 'port', 'video_fps', 'video_character_scale', 'video_fade', 'video_intermediate_crf', 'video_workers', 'tts_max_retries', 'tts_timeout']:
                 try:
                     if value.strip() != '':
                         command.extend([arg, str(float(value) if '.' in value else int(value))])

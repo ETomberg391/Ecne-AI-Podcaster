@@ -30,16 +30,12 @@
 
             <h2>Voice Settings</h2>
             <div class="form-group">
-                <label for="host_voice">Host Voice (for script mode):</label>
+                <label for="host_voice">Host Voice:</label>
                 <input type="text" id="host_voice" name="host_voice" value="leo">
             </div>
-            <div class="form-group">
-                <label for="guest_voice">Guest Voice (for script mode):</label>
+            <div class="form-group" id="guest_voice_group">
+                <label for="guest_voice">Guest Voice:</label>
                 <input type="text" id="guest_voice" name="guest_voice" value="tara">
-            </div>
-            <div class="form-group">
-                <label for="voice">Voice (for single input mode):</label>
-                <input type="text" id="voice" name="voice" value="tara">
             </div>
             <div class="form-group">
                 <label for="speed">Speech Speed Factor (0.5 to 1.5):</label>
@@ -75,6 +71,14 @@
                 <div class="form-group">
                     <label for="port">Orpheus-FastAPI Port:</label>
                     <input type="number" id="port" name="port" value="5005">
+                </div>
+                <div class="form-group">
+                    <label for="tts_max_retries">TTS Max Retries (for failed requests):</label>
+                    <input type="number" id="tts_max_retries" name="tts_max_retries" value="3" min="1" max="10">
+                </div>
+                <div class="form-group">
+                    <label for="tts_timeout">TTS Timeout per request (seconds):</label>
+                    <input type="number" id="tts_timeout" name="tts_timeout" value="180" min="30" max="600">
                 </div>
 
                 <h3>Output & Video Settings</h3>

@@ -58,6 +58,7 @@ def parse_arguments():
     parser.add_argument("--reference-docs-summarize", action="store_true", help="Summarize and score reference docs before including them.")
     parser.add_argument("--reference-docs-folder", type=str, default=None, help="Path to a folder containing reference documents (txt, pdf, docx).")
     parser.add_argument("--no-reddit", action="store_true", help="Exclude Reddit sources from discovery and scraping.")
+    parser.add_argument("--single-speaker", action="store_true", help="Generate a single-speaker podcast script (Host only, no Guest).")
 
     args = parser.parse_args()
 
