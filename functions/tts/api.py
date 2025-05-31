@@ -9,6 +9,12 @@ import shlex
 import subprocess # Added for subprocess.run
 from functions.tts.utils import load_voice_config
 
+# Override print function to force immediate flushing for real-time output
+original_print = print
+def print(*args, **kwargs):
+    kwargs.setdefault('flush', True)
+    return original_print(*args, **kwargs)
+
 def generate_audio_segment(input_text, voice, speed, api_host, api_port, temp_dir,
                            # Parameters that can be overridden by function call
                            apply_deesser=None, # Boolean toggle (True/False/None)

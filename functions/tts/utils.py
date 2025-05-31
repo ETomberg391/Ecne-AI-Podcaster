@@ -6,6 +6,12 @@ import tempfile
 import shutil
 from scipy.signal import resample # For resampling in concatenate_wavs
 
+# Override print function to force immediate flushing for real-time output
+original_print = print
+def print(*args, **kwargs):
+    kwargs.setdefault('flush', True)
+    return original_print(*args, **kwargs)
+
 # Define VOICE_DIR relative to the project root, assuming functions/tts/utils.py is in functions/tts/
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..')) # Go up two levels from functions/tts/
