@@ -34,6 +34,12 @@ os.makedirs(control_panel_app.config['ARCHIVE_DIR'], exist_ok=True)
 
 # --- Helper Functions (Migrated from web_app.py) ---
 
+def normalize_path_for_url(file_path):
+    """Convert OS-specific file paths to URL-compatible paths with forward slashes."""
+    if file_path:
+        return file_path.replace('\\', '/')
+    return file_path
+
 def load_api_keys():
     """Loads API keys from environment variables (loaded from .env)."""
     return {
@@ -115,7 +121,7 @@ def find_output_files(base_dir):
                 # Get the most recent script file
                 script_files.sort(key=lambda x: os.path.getmtime(os.path.join(scripts_dir, x)), reverse=True)
                 latest_script = script_files[0]
-                final_files.append(f"scripts/{latest_script}")
+                final_files.append(normalize_path_for_url(f"scripts/{latest_script}"))
         except OSError as e:
             print(f"Error listing files in {scripts_dir}: {e}")
 
@@ -137,7 +143,7 @@ def find_output_files(base_dir):
                     report_files = [f for f in files_in_latest_run if f.endswith('_report.txt')]
                     if report_files:
                         relative_path = os.path.relpath(report_files[0], outputs_base_dir)
-                        final_files.append(relative_path)
+                        final_files.append(normalize_path_for_url(relative_path))
                 except OSError as e:
                     print(f"Error listing files in {latest_run_dir}: {e}")
         except OSError as e:
@@ -390,17 +396,34 @@ def run_builder_process(command, cwd, process_type):
         # Add PYTHONUNBUFFERED to force immediate output
         env = os.environ.copy()
         env['PYTHONUNBUFFERED'] = '1'
-        process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=0, universal_newlines=True, env=env)
+        env['PYTHONDONTWRITEBYTECODE'] = '1'
+        # Force line buffering for real-time output
+        process = subprocess.Popen(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, universal_newlines=True, env=env)
         process_info['current_process'] = process
         process_info['running'] = True
 
         full_output_buffer = [] # Buffer to store all output lines
         start_time = datetime.datetime.now() # Capture start time
 
-        # Read output line by line and put into queue and buffer
-        for line in iter(process.stdout.readline, ''):
-            output_queue.put(line)
-            full_output_buffer.append(line)
+        # Read output line by line with aggressive heartbeat support
+        last_heartbeat = time.time()
+        
+        # Simple loop that reads line by line but sends heartbeats during silence
+        while True:
+            line = process.stdout.readline()
+            if line:
+                output_queue.put(line)
+                full_output_buffer.append(line)
+                last_heartbeat = time.time()
+            elif process.poll() is not None:
+                # Process has ended
+                break
+            else:
+                # No output, but process is still running - send heartbeat more frequently
+                if time.time() - last_heartbeat > 1.5:  # Reduced from 3.0 to 1.5 seconds
+                    output_queue.put(json.dumps({'type': 'heartbeat', 'timestamp': time.time()}) + '\n')
+                    last_heartbeat = time.time()
+                time.sleep(0.05)  # Reduced sleep time for more responsive checking
 
         process.wait()
 
@@ -433,7 +456,7 @@ def run_builder_process(command, cwd, process_type):
                             # Get the most recent video file
                             video_files.sort(key=lambda x: os.path.getmtime(os.path.join(final_dir, x)), reverse=True)
                             latest_video = video_files[0]
-                            final_output_files.append(f"final/{latest_video}")
+                            final_output_files.append(normalize_path_for_url(f"final/{latest_video}"))
                     except OSError as e:
                         print(f"Error finding podcast output files: {e}")
 
@@ -504,7 +527,7 @@ def get_available_scripts():
                     file_stats = os.stat(file_path)
                     available_scripts.append({
                         'filename': file,
-                        'path': f"scripts/{file}",
+                        'path': normalize_path_for_url(f"scripts/{file}"),
                         'modified': datetime.datetime.fromtimestamp(file_stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
                         'size': file_stats.st_size
                     })
@@ -558,7 +581,7 @@ def history_page():
                 relative_path = os.path.relpath(full_path, base_output_folder)
                 all_output_files.append({
                     'name': file,
-                    'path': relative_path,
+                    'path': normalize_path_for_url(relative_path),
                     'size': os.path.getsize(full_path),
                     'modified': datetime.datetime.fromtimestamp(os.path.getmtime(full_path)).strftime('%Y-%m-%d %H:%M:%S'),
                     'type': 'video'
@@ -572,7 +595,7 @@ def history_page():
                 relative_path = os.path.relpath(full_path, base_output_folder)
                 all_output_files.append({
                     'name': file,
-                    'path': relative_path,
+                    'path': normalize_path_for_url(relative_path),
                     'size': os.path.getsize(full_path),
                     'modified': datetime.datetime.fromtimestamp(os.path.getmtime(full_path)).strftime('%Y-%m-%d %H:%M:%S'),
                     'type': 'script'
@@ -603,7 +626,8 @@ def generate_script():
     uploaded_files = request.files
 
     script_path = os.path.join(os.path.dirname(__file__), 'script_builder.py')
-    command = ['python', script_path]
+    venv_python = os.path.join(os.path.dirname(__file__), 'host_venv', 'Scripts', 'python.exe')
+    command = [venv_python, script_path]
 
     arg_map = {
         'topic': '--topic', 'keywords': '--keywords', 'guidance': '--guidance',
@@ -693,7 +717,8 @@ def generate_podcast_video():
     uploaded_files = request.files
 
     script_path = os.path.join(os.path.dirname(__file__), 'podcast_builder.py')
-    command = ['python', script_path]
+    venv_python = os.path.join(os.path.dirname(__file__), 'host_venv', 'Scripts', 'python.exe')
+    command = [venv_python, script_path]
     command.append('--dev')
 
     # Check if using a predefined script or uploaded file
@@ -769,9 +794,12 @@ def stream_output():
     output_queue = process_info['output_queue']
 
     def generate():
+        # Send initial heartbeat to establish connection immediately
+        yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': time.time()})}\n\n"
+        
         while process_info['running'] or not output_queue.empty():
             try:
-                line = output_queue.get(timeout=1)
+                line = output_queue.get(timeout=0.2)  # Further reduced timeout for more responsive streaming
                 if line is None:
                     break
 
@@ -801,14 +829,18 @@ def stream_output():
                     if video_path_match:
                         full_path = video_path_match.group(1)
                         relative_path = os.path.relpath(full_path, control_panel_app.config['OUTPUT_FOLDER'])
-                        process_info['final_output_files'].append(relative_path)
-                        yield f"data: {json.dumps({'type': 'video_ready', 'path': relative_path})}\n\n"
+                        normalized_path = normalize_path_for_url(relative_path)
+                        process_info['final_output_files'].append(normalized_path)
+                        yield f"data: {json.dumps({'type': 'video_ready', 'path': normalized_path})}\n\n"
                         continue
 
                 # Attempt to parse any line as a JSON event
                 try:
                     event_dict = json.loads(line.strip())
                     if isinstance(event_dict, dict) and 'type' in event_dict:
+                        # Skip heartbeat messages in the output stream (they're only for connection keep-alive)
+                        if event_dict.get('type') == 'heartbeat':
+                            continue
                         yield f"data: {json.dumps(event_dict)}\n\n"
                         continue
                 except json.JSONDecodeError:
@@ -816,7 +848,8 @@ def stream_output():
 
                 yield f"data: {json.dumps({'type': 'output', 'content': line})}\n\n"
             except queue.Empty:
-                yield "data: {}\n\n"
+                # Send heartbeat to keep connection alive
+                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': time.time()})}\n\n"
             except Exception as e:
                  print(f"Error streaming output for {process_type}: {e}")
                  yield f"data: {json.dumps({'type': 'error', 'content': f'Streaming error: {e}'})}\n\n"

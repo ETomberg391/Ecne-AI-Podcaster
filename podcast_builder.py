@@ -7,6 +7,15 @@ import json
 import shutil # For copying files and rmtree
 import datetime
 
+# Force immediate stdout flushing for real-time output streaming
+sys.stdout.reconfigure(line_buffering=True)
+
+# Override print function to force immediate flushing
+original_print = print
+def print(*args, **kwargs):
+    kwargs.setdefault('flush', True)
+    return original_print(*args, **kwargs)
+
 # Import modular functions and classes
 from functions.tts.api import generate_audio_segment
 from functions.tts.utils import generate_silence, concatenate_wavs
@@ -21,6 +30,10 @@ FINAL_AUDIO_OUTPUT_DIR = os.path.join(OUTPUT_DIR, "final")
 ARCHIVE_DIR = os.path.join(OUTPUT_DIR, "archive")
 
 def main():
+    # Immediate output to ensure SSE connection gets data right away
+    print("=== AI Podcast Builder Starting ===")
+    print("Initializing podcast generation process...")
+    
     args = parse_tts_arguments()
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -95,7 +108,7 @@ def main():
             if not parsed_segments:
                 print("!! Error: No valid 'Speaker: Dialogue' lines found in the script.")
                 sys.exit(1)
-            print(f"Found {len(parsed_segments)} valid dialogue segments.")
+            print(f"Found {len(parsed_segments)} valid dialogue segments.", flush=True)
 
             PADDING_SPEAKER_CHANGE_MS = 750
             PADDING_SAME_SPEAKER_MS = 100
@@ -113,7 +126,7 @@ def main():
                         pad_ms = PADDING_SPEAKER_CHANGE_MS
                     else:
                         pad_ms = PADDING_SAME_SPEAKER_MS
-                    print(f"  Segment {idx+1} (Line {line_num}): Next speaker is '{next_speaker}'. Padding = {pad_ms}ms")
+                    print(f"  Segment {idx+1} (Line {line_num}): Next speaker is '{next_speaker}'. Padding = {pad_ms}ms", flush=True)
                 else:
                     print(f"  Segment {idx+1} (Line {line_num}): Last segment. Padding = 0ms")
 
@@ -197,7 +210,7 @@ def main():
         files_to_concatenate = []
         if args.dev:
             if reviewable_indices:
-                 print("\nEntering development mode for segment review...")
+                 print("\nEntering development mode for segment review...", flush=True)
                  dev_mode_process_result = dev_mode_process(
                      all_segment_files,
                      reviewable_indices,
@@ -206,7 +219,7 @@ def main():
                  )
 
                  if dev_mode_process_result is not None:
-                     print("Development mode finished. Processing final segments...")
+                     print("Development mode finished. Processing final segments...", flush=True)
                      if dev_mode_process_result:
                          print(f"Found {len(dev_mode_process_result)} segments with audio and visual details")
                          
@@ -214,11 +227,11 @@ def main():
                          os.makedirs(output_dir, exist_ok=True)
                          print(f"Created podcast audio directory: {output_dir}")
 
-                         print(f"\nProcessing {len(dev_mode_process_result)} segments for final JSON...")
+                         print(f"\nProcessing {len(dev_mode_process_result)} segments for final JSON...", flush=True)
                          for idx, segment in enumerate(dev_mode_process_result):
                              original_audio_path = segment.get('audio_path')
                              segment_type = segment.get('type', 'unknown')
-                             print(f"  Segment {idx+1} ({segment_type}): Checking path '{original_audio_path}'")
+                             print(f"  Segment {idx+1} ({segment_type}): Checking path '{original_audio_path}'", flush=True)
 
                              is_temporary = original_audio_path and os.path.abspath(TEMP_AUDIO_DIR) in os.path.abspath(original_audio_path)
 
