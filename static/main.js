@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const stopScriptButton = document.getElementById('stop-script-button');
     const closeScriptModalButton = document.getElementById('close-script-modal-button'); // New
     const stopPodcastButton = document.getElementById('stop-podcast-button');
+    const closePodcastModalButton = document.getElementById('close-podcast-modal-button'); // New
 
     // Modals and output areas
     const scriptProgressModal = document.getElementById('script-progress-modal');
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let podcastTotalSegments = 0;
     let podcastCurrentSegment = 0;
+    let podcastProcessCompletedSuccessfully = false; // New flag for podcast builder
 
     // --- Helper Functions for Drag and Drop (from script.js) ---
     function preventDefaults(event) {
@@ -375,6 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (generatePodcastButton) generatePodcastButton.disabled = true;
             if (stopPodcastButton) stopPodcastButton.style.display = 'inline-block';
+            if (closePodcastModalButton) closePodcastModalButton.style.display = 'none'; // Ensure OK button is hidden at start
             if (podcastProgressModal) podcastProgressModal.style.display = 'flex';
             if (podcastProgressMessage) podcastProgressMessage.textContent = 'Initializing...';
             if (podcastConsoleOutput) podcastConsoleOutput.textContent = '';
@@ -383,6 +386,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (podcastOutputLinksDiv) podcastOutputLinksDiv.innerHTML = '';
             podcastTotalSegments = 0;
             podcastCurrentSegment = 0;
+            podcastProcessCompletedSuccessfully = false; // Reset flag at start of new process
 
             const formData = new FormData(podcastForm);
 
@@ -460,6 +464,11 @@ document.addEventListener('DOMContentLoaded', function() {
         eventSource.onmessage = function(event) {
             const data = JSON.parse(event.data);
 
+            // Skip heartbeat messages
+            if (data.type === 'heartbeat') {
+                return; // Don't display heartbeat messages
+            }
+
             if (data.type === 'output') {
                 if (consoleOutputElement) {
                     consoleOutputElement.textContent += data.content;
@@ -496,6 +505,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (data.type === 'complete') {
                 if (processType === 'script_builder') {
                     scriptProcessCompletedSuccessfully = true; // Set flag FIRST
+                } else if (processType === 'podcast_builder') {
+                    podcastProcessCompletedSuccessfully = true; // Set flag FIRST
                 }
 
                 if (consoleOutputElement) consoleOutputElement.textContent += "\n--- Process Complete ---\n";
@@ -566,7 +577,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (progressMessageElement) progressMessageElement.textContent = "Podcast generation complete. No output files found.";
                         if (outputLinksDivElement) outputLinksDivElement.textContent = "No output files found.";
                     }
-                    resetPodcastProcessStatus();
+                    if (stopPodcastButton) stopPodcastButton.style.display = 'none';
+                    if (closePodcastModalButton) closePodcastModalButton.style.display = 'inline-block';
                 }
                 eventSource.close();
             } else if (data.type === 'error') {
@@ -596,8 +608,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (closeScriptModalButton) closeScriptModalButton.style.display = 'inline-block';
                 stopScriptTimer();
                 if (scriptTimerSpan) scriptTimerSpan.textContent = formatDuration(scriptTotalDuration);
-            } else if (processType === 'podcast_builder') {
-                resetPodcastProcessStatus();
+            } else if (processType === 'podcast_builder' && !podcastProcessCompletedSuccessfully) {
+                if (consoleOutputElement) consoleOutputElement.textContent += '\n--- Connection to output stream closed or error occurred. Process may still be running in the background. ---\n';
+                if (progressMessageElement) progressMessageElement.textContent = "Connection lost. Process may continue in background. Check for GUI window.";
+                if (spinnerElement) spinnerElement.style.display = 'none';
+                // Don't reset the podcast status - let it continue running
             }
             eventSource.onerror = null; // Prevent infinite loop on error
             eventSource.close();
@@ -608,6 +623,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (closeScriptModalButton) {
         closeScriptModalButton.addEventListener('click', function() {
             resetScriptProcessStatus(); // This will hide the modal
+        });
+    }
+
+    // Handle Close Podcast Modal Button Click
+    if (closePodcastModalButton) {
+        closePodcastModalButton.addEventListener('click', function() {
+            resetPodcastProcessStatus(); // This will hide the modal
         });
     }
 
@@ -659,8 +681,12 @@ document.addEventListener('DOMContentLoaded', function() {
             stopPodcastButton.disabled = false;
             stopPodcastButton.textContent = 'Stop Podcast Generation';
         }
+        if (closePodcastModalButton) {
+            closePodcastModalButton.style.display = 'none';
+        }
         if (podcastProgressModal) podcastProgressModal.style.display = 'none';
         if (podcastSpinner) podcastSpinner.style.display = 'none';
+        podcastProcessCompletedSuccessfully = false; // Reset flag when closing modal
     }
 
     // --- Settings Page Specifics (from settings.js) ---
