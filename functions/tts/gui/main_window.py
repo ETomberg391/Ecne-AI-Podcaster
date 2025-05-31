@@ -8,6 +8,12 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sys
 
+# Override print function to force immediate flushing for real-time output
+original_print = print
+def print(*args, **kwargs):
+    kwargs.setdefault('flush', True)
+    return original_print(*args, **kwargs)
+
 # Import functions from other modules
 from functions.tts.api import generate_audio_segment
 from functions.tts.utils import load_voice_config, generate_silence, concatenate_wavs
