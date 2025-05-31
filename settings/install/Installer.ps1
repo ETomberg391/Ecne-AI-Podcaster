@@ -78,7 +78,7 @@ function Test-Command {
         
         # Only offer to install if we have a package manager and install command
         if ($PackageManager -and $InstallCommand) {
-            $install = Read-Host "Do you want to attempt to install '$PackageName' using $PKG_MANAGER? [Y/n]"
+            $install = Read-Host "Do you want to attempt to install '$PackageName' using ${PackageManager}? [Y/n]"
             $install = $install.ToLower()
             
             if ($install -ne "n") {
@@ -87,14 +87,19 @@ function Test-Command {
                     Invoke-Expression "$InstallCommand $PackageName"
                     Write-Info "'$PackageName' installed successfully."
                     
+                    # Refresh environment variables in current session
+                    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                    
                     # Verify command is now available
                     if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
-                        Write-Error "Installation of '$PackageName' seemed successful, but command '$CommandName' is still not found. Please check your PATH or the installation."
+                        Write-Warning "Installation of '$PackageName' seemed successful, but command '$CommandName' is still not found in current session."
+                        Write-Warning "This is normal after PATH updates. The command should be available in new terminal sessions."
+                        Write-Info "You may need to restart your terminal or computer for the PATH changes to take effect."
                     }
                     return $true
                 }
                 catch {
-                    Write-Error "Failed to install '$PackageName' using $PackageManager. $_"
+                    Write-Error "Failed to install '$PackageName' using ${PackageManager}. $_"
                 }
             }
             else {
@@ -253,7 +258,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
         $installDocker = $installDocker.ToLower()
         
         if ($installDocker -eq "y") {
-            Write-Info "Attempting to install Docker Desktop using $PKG_MANAGER..."
+            Write-Info "Attempting to install Docker Desktop using ${PKG_MANAGER}..."
             
             try {
                 switch ($PKG_MANAGER) {
@@ -286,19 +291,43 @@ else {
 
 # Check Docker Compose (usually included with Docker Desktop on Windows)
 Write-Info "Checking for Docker Compose..."
-try {
-    docker compose version | Out-Null
-    $DOCKER_COMPOSE_CMD = "docker compose"
-    Write-Info "Found 'docker compose' (V2 syntax)."
+
+# Check if Docker was just installed by looking for the docker command
+$dockerJustInstalled = $false
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    # Refresh environment variables in current session
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+        $dockerJustInstalled = $true
+        Write-Warning "Docker command not found in current session after installation."
+        Write-Info "This is normal immediately after Docker Desktop installation."
+    }
 }
-catch {
+
+if ($dockerJustInstalled) {
+    Write-Info "Docker Desktop was just installed. Skipping Docker Compose check for now."
+    Write-Info "Please start Docker Desktop and re-run this installer to complete the setup."
+    $DOCKER_COMPOSE_CMD = "docker compose"  # Assume V2 syntax for new installations
+}
+else {
     try {
-        docker-compose --version | Out-Null
-        $DOCKER_COMPOSE_CMD = "docker-compose"
-        Write-Info "Found 'docker-compose' (V1 syntax)."
+        docker compose version | Out-Null
+        $DOCKER_COMPOSE_CMD = "docker compose"
+        Write-Info "Found 'docker compose' (V2 syntax)."
     }
     catch {
-        Write-Error "Docker Compose not found. Please ensure Docker Desktop is properly installed."
+        try {
+            docker-compose --version | Out-Null
+            $DOCKER_COMPOSE_CMD = "docker-compose"
+            Write-Info "Found 'docker-compose' (V1 syntax)."
+        }
+        catch {
+            Write-Warning "Docker Compose not found in current session."
+            Write-Info "If Docker Desktop was just installed, please start Docker Desktop and re-run this installer."
+            Write-Info "Docker Desktop includes Docker Compose by default."
+            $DOCKER_COMPOSE_CMD = "docker compose"  # Assume V2 syntax for new installations
+        }
     }
 }
 
@@ -439,7 +468,7 @@ try {
     $requirementsPath = Join-Path $ROOT_PROJECT_DIR "requirements_host.txt"
     if (Test-Path $requirementsPath) {
         Write-Info "Installing host dependencies from $requirementsPath..."
-        & ".\host_venv\Scripts\pip.exe" install -r $requirementsPath
+        & ".\host_venv\Scripts\pip.exe" install -r $requirementsPath --no-cache-dir --force-reinstall
         
         # Check Python version and install audioop-lts if Python 3.13+
         try {
@@ -754,7 +783,7 @@ else {
         Write-Host "SIZE: ~100-150MB download + installation space"
         Write-Host "NOTE: ChromeDriver will be installed to host_venv after Chrome installation"
         Write-Host ""
-        $installChrome = Read-Host "Do you want to install Google Chrome using $PKG_MANAGER? [y/N]"
+        $installChrome = Read-Host "Do you want to install Google Chrome using ${PKG_MANAGER}? [y/N]"
         $installChrome = $installChrome.ToLower()
         
         if ($installChrome -eq "y") {
@@ -956,5 +985,10 @@ else {
 }
 Write-Host "* All components (FastAPI app, llama.cpp server, model) are managed by Docker Compose."
 Write-Host "* Chrome and ChromeDriver were installed/checked for Selenium features."
-Write-Host "* If Docker Desktop was just installed, you may need to restart your computer."
+Write-Host ""
+Write-Host "*** IMPORTANT: If any components were just installed (FFmpeg, Docker Desktop, etc.) ***"
+Write-Host "* You may need to restart your terminal or computer for PATH changes to take effect."
+Write-Host "* If Docker Desktop was installed, please start Docker Desktop before using the services."
+Write-Host "* If the installer reported any 'command not found' warnings, try re-running this installer"
+Write-Host "  after restarting your terminal or after starting the newly installed applications."
 Write-Host ""
