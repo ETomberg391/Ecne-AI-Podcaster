@@ -105,8 +105,8 @@ The installer handles most dependencies automatically.
 
 *   **Mabinogi Reforging Guide:**
 *    [![YouTube](https://img.youtube.com/vi/gHvIbpv95iQ/0.jpg)](https://youtu.be/gHvIbpv95iQ?si=yjsy_GlQMz_QKqHH)
-*   **Evaluating LLMs for Code Generation:**
-*    [![YouTube](https://img.youtube.com/vi/9pTBPMgRlBU/0.jpg)](https://youtu.be/9pTBPMgRlBU?si=EYcKWf7voCcyHx5h)
+*   **Dundell's Cyberspace - What are Game Emulators?:**
+*    [![YouTube](https://img.youtube.com/vi/9pTBPMgRlBU/0.jpg)](https://youtu.be/zbZmEwGinoA?si=hSPlLnpuAsajUtsb)
 
 ---
 
