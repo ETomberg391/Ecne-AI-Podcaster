@@ -13,6 +13,7 @@ from functions.scraping.content import scrape_content
 from functions.scraping.documents import load_reference_documents
 from functions.processing.summarization import summarize_content
 from functions.processing.report_generation import generate_report
+from functions.processing.youtube_descriptor import generate_youtube_description
 from functions.processing.script_generation import generate_and_refine_script
 from functions.utils import log_to_file, run_archive_dir, set_run_archive_dir # Import log_to_file, run_archive_dir, and set_run_archive_dir
 
@@ -270,6 +271,7 @@ def main():
 
         # Renumbering subsequent steps mentally
         # 6. Generate Report (Optional)
+        report_filepath = None
         if args.report:
             # Pass relevant_summaries AND reference_docs_content to generate_report
             report_filepath = generate_report(relevant_summaries, reference_docs_content, args.topic, env_config, args)
@@ -278,6 +280,28 @@ def main():
             else:
                 print("\nWarning: Report generation failed, but continuing with script generation.")
                 log_to_file("Warning: Report generation failed.")
+
+        # 6.5. Generate YouTube Description (Optional, requires report)
+        if args.youtube_description:
+            if report_filepath and os.path.exists(report_filepath):
+                try:
+                    # Read the report content
+                    with open(report_filepath, 'r', encoding='utf-8') as rf:
+                        report_content = rf.read()
+                    
+                    # Generate YouTube description
+                    youtube_desc_filepath = generate_youtube_description(report_content, args.topic, env_config, args)
+                    if youtube_desc_filepath:
+                        print(f"\nSuccessfully generated YouTube description: {youtube_desc_filepath}")
+                    else:
+                        print("\nWarning: YouTube description generation failed.")
+                        log_to_file("Warning: YouTube description generation failed.")
+                except Exception as e:
+                    print(f"\nError reading report file for YouTube description generation: {e}")
+                    log_to_file(f"Error reading report file for YouTube description: {e}")
+            else:
+                print("\nWarning: YouTube description generation requires a report to be generated first. Skipping YouTube description.")
+                log_to_file("Warning: YouTube description generation skipped - no report available.")
 
         # 7. Generate & Refine Script
         # Pass relevant_summaries AND reference_docs_content to generate_and_refine_script
@@ -306,14 +330,10 @@ def main():
         except Exception as e: print(f"Error reading script file for display: {e}")
         print("------------------\n")
 
-        # 8. Synthesize Audio (Placeholder)
-        # Note: The synthesize_audio function currently saves to run_archive_dir.
-        # If audio also needs a specific 'outputs/audio' directory, that logic would need to be added here or in synthesize_audio.
-        audio_filepath = synthesize_audio(script_filepath, run_archive_dir) # Pass the local run_archive_dir
-        if not audio_filepath:
-            # Don't raise error, just warn that audio failed
-            print("\nWarning: Audio synthesis placeholder step failed.")
-            log_to_file("Warning: Audio synthesis failed.")
+        # 8. Audio synthesis is handled by podcast_builder, not script_builder
+        print("\nSkipping audio synthesis - audio handled by podcast_builder.")
+        log_to_file("Audio synthesis skipped - handled by podcast_builder.")
+        audio_filepath = None
 
         # --- Completion ---
         end_time = time.time()

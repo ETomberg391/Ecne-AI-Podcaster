@@ -17,6 +17,12 @@ import subprocess # For FFmpeg noise reduction AND concatenation
 import shlex # For safe command string formatting for printing
 # Removed soundfile and noisereduce imports as they weren't used in v3's active code path
 
+# Override print function to force immediate flushing for real-time output
+original_print = print
+def print(*args, **kwargs):
+    kwargs.setdefault('flush', True)
+    return original_print(*args, **kwargs)
+
 # --- Constants ---
 HOST_POS = ('left', 'bottom')
 GUEST_POS = ('right', 'bottom')

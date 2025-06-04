@@ -49,6 +49,7 @@ def parse_arguments():
     parser.add_argument("--combine-keywords", action="store_true", help="Treat keywords as one search query (legacy).")
     # Output & Content
     parser.add_argument("--report", action="store_true", help="Generate a written report in addition to the script.")
+    parser.add_argument("--youtube-description", action="store_true", help="Generate a YouTube description based on the report.")
     parser.add_argument("--score-threshold", type=int, default=5, help="Minimum summary score (0-10) to include in script.")
     parser.add_argument("--guidance", type=str, default=None, help="Additional guidance/instructions string for the LLM prompts.")
     parser.add_argument("--direct-articles", type=str, default=None, help="Path to a text file containing a list of article URLs (one per line) to scrape directly.")
@@ -58,6 +59,7 @@ def parse_arguments():
     parser.add_argument("--reference-docs-summarize", action="store_true", help="Summarize and score reference docs before including them.")
     parser.add_argument("--reference-docs-folder", type=str, default=None, help="Path to a folder containing reference documents (txt, pdf, docx).")
     parser.add_argument("--no-reddit", action="store_true", help="Exclude Reddit sources from discovery and scraping.")
+    parser.add_argument("--single-speaker", action="store_true", help="Generate a single-speaker podcast script (Host only, no Guest).")
 
     args = parser.parse_args()
 

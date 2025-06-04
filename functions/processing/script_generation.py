@@ -74,53 +74,95 @@ def format_script_generation_prompt(summaries_with_scores, reference_docs_conten
     host_details = yaml.dump(host_profile, default_flow_style=False, sort_keys=False)
     guest_details = yaml.dump(guest_profile, default_flow_style=False, sort_keys=False)
 
+    # Check for single speaker mode
+    single_speaker_mode = getattr(args, 'single_speaker', False)
+    
     # --- Construct the Prompt ---
     # (Using the detailed prompt from main.py, slightly adjusted)
     guidance_text = f"\n**Additional Guidance:** {args.guidance}\n" if args.guidance else ""
-    prompt = (
-        f"You are an AI scriptwriter for the podcast '{podcast_name}'. Your task is to create a natural, engaging podcast script with a '{host_profile.get('vibe', 'chill but informal')}' vibe about the specific topic: '{topic}'.{guidance_text}\n"
-        f"**Characters:**\n\n"
-        f"--- HOST PROFILE ---\n{host_details}\n--------------------\n\n"
-        f"--- GUEST PROFILE ---\n{guest_details}\n---------------------\n\n"
-        f"**Podcast Topic:** {topic}\n"
-        f"{guidance_text}\n" # Add guidance here as well for clarity
-        f"**Task:**\n"
-        f"Generate a comprehensive and extended podcast script based *thoroughly* on the provided context (summaries and/or full reference documents), following these strict rules:\n"
-        f"1. **Human-like & Extended Conversation:** Make the dialogue sound like a real, flowing, and in-depth conversation. Aim to extend the discussion naturally by exploring nuances within the provided context. Inject subtle emotions like curiosity (Host), enthusiasm (Guest), surprise, or thoughtfulness where appropriate based on the content. Avoid robotic question-answer cycles.\n"
-        f"2. **Emotional Nuance:** Host should express genuine interest and occasionally react with phrases like 'Wow, that's really interesting!' or 'I never thought about it that way.' Guest should convey passion for the topic, perhaps expressing excitement about a breakthrough or thoughtful concern about implications.\n"
-        f"3. **Comprehensive Analysis & Synthesis:** Analyze **ALL** provided summaries (prioritizing higher scores) AND any full reference documents exhaustively. Find connections, contrasts, related themes, and specific details (especially statistics or benchmarks). Integrate information from all sources (summaries and full documents) into a coherent discussion about the main '{topic}'. Don't just list facts; weave the information together.\n"
-        f"4. **Coverage & Flow:** Cover the most relevant points (indicated by summary score or presence in reference docs) comprehensively. Create natural, smooth transitions between different topics or aspects derived from the context.\n"
-        f"5. **Character Adherence:** Strictly match the personalities, speaking styles, and interaction patterns defined in the profiles.\n"
-        f"6. **Proactive Host Role:** Host guides the conversation, introduces the main topic '{topic}' and the podcast name '{podcast_name}' in the intro, connects topics, and expresses the listener's perspective. **Crucially, the Host should actively look for opportunities to ask insightful follow-up questions after the Guest responds, potentially drawing more details from other relevant summaries. The Host MUST also ask for clarification if the Guest provides a complex, technical, or potentially confusing answer.**\n"
-        f"7. **Informative Guest Role:** Guest provides expert information, explains complex ideas clearly, links related concepts, and responds thoughtfully to the host's initial and follow-up questions.\n\n"
-        f"**Content Organization:**\n"
-        f"   - Intro: Host introduces podcast ('{podcast_name}'), topic ('{topic}'), and guest. Asks for high-level overview based on the overall context.\n"
-        f"   - Body: Discuss key aspects from the summaries (prioritizing high scores) and reference documents. Use Host's follow-up questions and clarifications to delve deeper. Ensure Guest defines technical terms. Transition smoothly between sub-topics derived from all context.\n"
-        f"   - Outro: Host briefly summarizes key takeaways and thanks the guest. (A specific sign-off will be added in the refinement step).\n\n"
-        f"**CRITICAL FORMATTING RULES (OUTPUT MUST FOLLOW EXACTLY):**\n"
-        f"1. **OUTPUT TAG:** You MUST enclose the *entire* podcast script dialogue within a single pair of `<scriptCast>` tags.\n"
-        f"2. **DIALOGUE FORMAT:** Inside the `<scriptCast>` tag, each line of dialogue MUST start with either 'Host: ' or 'Guest: ', followed by their speech.\n"
-        f"3. **NO EXTRA TEXT:** ONLY include the dialogue lines (starting with 'Host: ' or 'Guest: ') inside the `<scriptCast>` tags. **ABSOLUTELY NO** other text, introductory phrases, explanations, thinking tags (`<think>...</think>`), or stage directions (like `[laughs]`) should be present anywhere in the final output, especially not outside the `<scriptCast>` tags.\n\n"
-        f"**Example of CORRECT Output Format:**\n"
-        f"<scriptCast>\n"
-        f"Host: Welcome back to {podcast_name}, everyone! Today, we're diving into the fascinating topic of '{topic}'. {guest_profile.get('name', 'Guest')}, thanks for joining us. Could you give us the high-level view?\n"
-        f"Guest: Absolutely, {host_profile.get('name', 'Host')}! Great to be here. At its core, {topic} is about...\n"
-        f"Host: That makes sense. You mentioned [detail from summary], could you expand on that?\n"
-        f"Guest: Certainly. That relates to...\n"
-        f"Host: Okay, so if I understand correctly, [paraphrases complex point]?\n"
-        f"Guest: Exactly!\n"
-        f"Host: Fantastic insights, {guest_profile.get('name', 'Guest')}. Thanks for breaking that down.\n"
-        f"</scriptCast>\n\n"
-        f"**Context for Script Generation:**\n\n"
-        f"--- Summaries (Prioritize higher scores) ---\n{combined_summaries_text}\n---\n\n"
-        f"{full_reference_docs_text}\n\n" # This will be empty if no full docs were used
-        f"Remember: The entire output MUST be ONLY the dialogue script (with 'Host:'/'Guest:' labels) enclosed in a single `<scriptCast>` tag. NO OTHER TEXT OR TAGS outside of this single tag pair."
-    )
+    
+    if single_speaker_mode:
+        # Single speaker prompt format
+        prompt = (
+            f"You are an AI scriptwriter for the podcast '{podcast_name}'. Your task is to create a natural, engaging single-speaker podcast script with a '{host_profile.get('vibe', 'chill but informal')}' vibe about the specific topic: '{topic}'.{guidance_text}\n"
+            f"**Host Character:**\n\n"
+            f"--- HOST PROFILE ---\n{host_details}\n--------------------\n\n"
+            f"**Podcast Topic:** {topic}\n"
+            f"{guidance_text}\n" # Add guidance here as well for clarity
+            f"**Task:**\n"
+            f"Generate a comprehensive and extended single-speaker podcast script based *thoroughly* on the provided context (summaries and/or full reference documents), following these strict rules:\n"
+            f"1. **Single Host Presentation:** This is a solo podcast where only the Host speaks. The Host should present information in an engaging, conversational style as if speaking directly to the audience.\n"
+            f"2. **Natural Monologue Flow:** Make the presentation sound like a natural, flowing monologue. The Host should use conversational techniques like rhetorical questions, personal reflections, and direct audience engagement (e.g., 'You might be wondering...', 'Here's what's interesting...').\n"
+            f"3. **Comprehensive Analysis & Synthesis:** Analyze **ALL** provided summaries (prioritizing higher scores) AND any full reference documents exhaustively. Find connections, contrasts, related themes, and specific details (especially statistics or benchmarks). Integrate information from all sources into a coherent presentation about '{topic}'.\n"
+            f"4. **Engaging Presentation Style:** The Host should vary their presentation style - sometimes explaining concepts step-by-step, sometimes sharing interesting facts, sometimes posing thought-provoking questions to the audience.\n"
+            f"5. **Character Adherence:** Strictly match the personality, speaking style, and presentation approach defined in the Host profile.\n"
+            f"6. **Audience Engagement:** Host should frequently acknowledge the audience, use inclusive language ('we', 'us'), and make the content accessible and relatable.\n\n"
+            f"**Content Organization:**\n"
+            f"   - Intro: Host introduces the podcast ('{podcast_name}') and topic ('{topic}'), and sets expectations for what will be covered.\n"
+            f"   - Body: Present key aspects from the summaries and reference documents in a logical flow. Use smooth transitions between topics. Include personal insights, explanations, and audience engagement.\n"
+            f"   - Outro: Host summarizes key takeaways and provides a personal closing thought. (A specific sign-off will be added in the refinement step).\n\n"
+            f"**CRITICAL FORMATTING RULES (OUTPUT MUST FOLLOW EXACTLY):**\n"
+            f"1. **OUTPUT TAG:** You MUST enclose the *entire* podcast script dialogue within a single pair of `<scriptCast>` tags.\n"
+            f"2. **DIALOGUE FORMAT:** Inside the `<scriptCast>` tag, each line of dialogue MUST start with 'Host: ', followed by their speech. **NO Guest lines should be included.**\n"
+            f"3. **NO EXTRA TEXT:** ONLY include the Host dialogue lines (starting with 'Host: ') inside the `<scriptCast>` tags. **ABSOLUTELY NO** other text, introductory phrases, explanations, thinking tags (`<think>...</think>`), or stage directions should be present.\n\n"
+            f"**Example of CORRECT Single Speaker Output Format:**\n"
+            f"<scriptCast>\n"
+            f"Host: Welcome to {podcast_name}, everyone! I'm {host_profile.get('name', 'your host')}, and today we're diving deep into the fascinating world of '{topic}'. Now, you might be wondering what makes this topic so compelling...\n"
+            f"Host: Let me start by sharing something that really caught my attention in my research. [Presents key information from context]\n"
+            f"Host: But here's where it gets really interesting... [Continues with analysis and insights]\n"
+            f"Host: I think what's most important for us to understand is... [Provides thoughtful conclusion]\n"
+            f"</scriptCast>\n\n"
+            f"**Context for Script Generation:**\n\n"
+            f"--- Summaries (Prioritize higher scores) ---\n{combined_summaries_text}\n---\n\n"
+            f"{full_reference_docs_text}\n\n" # This will be empty if no full docs were used
+            f"Remember: The entire output MUST be ONLY the Host dialogue lines (with 'Host:' labels) enclosed in a single `<scriptCast>` tag. NO Guest lines or other text."
+        )
+    else:
+        # Original two-speaker prompt format
+        prompt = (
+            f"You are an AI scriptwriter for the podcast '{podcast_name}'. Your task is to create a natural, engaging podcast script with a '{host_profile.get('vibe', 'chill but informal')}' vibe about the specific topic: '{topic}'.{guidance_text}\n"
+            f"**Characters:**\n\n"
+            f"--- HOST PROFILE ---\n{host_details}\n--------------------\n\n"
+            f"--- GUEST PROFILE ---\n{guest_details}\n---------------------\n\n"
+            f"**Podcast Topic:** {topic}\n"
+            f"{guidance_text}\n" # Add guidance here as well for clarity
+            f"**Task:**\n"
+            f"Generate a comprehensive and extended podcast script based *thoroughly* on the provided context (summaries and/or full reference documents), following these strict rules:\n"
+            f"1. **Human-like & Extended Conversation:** Make the dialogue sound like a real, flowing, and in-depth conversation. Aim to extend the discussion naturally by exploring nuances within the provided context. Inject subtle emotions like curiosity (Host), enthusiasm (Guest), surprise, or thoughtfulness where appropriate based on the content. Avoid robotic question-answer cycles.\n"
+            f"2. **Emotional Nuance:** Host should express genuine interest and occasionally react with phrases like 'Wow, that's really interesting!' or 'I never thought about it that way.' Guest should convey passion for the topic, perhaps expressing excitement about a breakthrough or thoughtful concern about implications.\n"
+            f"3. **Comprehensive Analysis & Synthesis:** Analyze **ALL** provided summaries (prioritizing higher scores) AND any full reference documents exhaustively. Find connections, contrasts, related themes, and specific details (especially statistics or benchmarks). Integrate information from all sources (summaries and full documents) into a coherent discussion about the main '{topic}'. Don't just list facts; weave the information together.\n"
+            f"4. **Coverage & Flow:** Cover the most relevant points (indicated by summary score or presence in reference docs) comprehensively. Create natural, smooth transitions between different topics or aspects derived from the context.\n"
+            f"5. **Character Adherence:** Strictly match the personalities, speaking styles, and interaction patterns defined in the profiles.\n"
+            f"6. **Proactive Host Role:** Host guides the conversation, introduces the main topic '{topic}' and the podcast name '{podcast_name}' in the intro, connects topics, and expresses the listener's perspective. **Crucially, the Host should actively look for opportunities to ask insightful follow-up questions after the Guest responds, potentially drawing more details from other relevant summaries. The Host MUST also ask for clarification if the Guest provides a complex, technical, or potentially confusing answer.**\n"
+            f"7. **Informative Guest Role:** Guest provides expert information, explains complex ideas clearly, links related concepts, and responds thoughtfully to the host's initial and follow-up questions.\n\n"
+            f"**Content Organization:**\n"
+            f"   - Intro: Host introduces podcast ('{podcast_name}'), topic ('{topic}'), and guest. Asks for high-level overview based on the overall context.\n"
+            f"   - Body: Discuss key aspects from the summaries (prioritizing high scores) and reference documents. Use Host's follow-up questions and clarifications to delve deeper. Ensure Guest defines technical terms. Transition smoothly between sub-topics derived from all context.\n"
+            f"   - Outro: Host briefly summarizes key takeaways and thanks the guest. (A specific sign-off will be added in the refinement step).\n\n"
+            f"**CRITICAL FORMATTING RULES (OUTPUT MUST FOLLOW EXACTLY):**\n"
+            f"1. **OUTPUT TAG:** You MUST enclose the *entire* podcast script dialogue within a single pair of `<scriptCast>` tags.\n"
+            f"2. **DIALOGUE FORMAT:** Inside the `<scriptCast>` tag, each line of dialogue MUST start with either 'Host: ' or 'Guest: ', followed by their speech.\n"
+            f"3. **NO EXTRA TEXT:** ONLY include the dialogue lines (starting with 'Host: ' or 'Guest: ') inside the `<scriptCast>` tags. **ABSOLUTELY NO** other text, introductory phrases, explanations, thinking tags (`<think>...</think>`), or stage directions (like `[laughs]`) should be present anywhere in the final output, especially not outside the `<scriptCast>` tags.\n\n"
+            f"**Example of CORRECT Output Format:**\n"
+            f"<scriptCast>\n"
+            f"Host: Welcome back to {podcast_name}, everyone! Today, we're diving into the fascinating topic of '{topic}'. {guest_profile.get('name', 'Guest')}, thanks for joining us. Could you give us the high-level view?\n"
+            f"Guest: Absolutely, {host_profile.get('name', 'Host')}! Great to be here. At its core, {topic} is about...\n"
+            f"Host: That makes sense. You mentioned [detail from summary], could you expand on that?\n"
+            f"Guest: Certainly. That relates to...\n"
+            f"Host: Okay, so if I understand correctly, [paraphrases complex point]?\n"
+            f"Guest: Exactly!\n"
+            f"Host: Fantastic insights, {guest_profile.get('name', 'Guest')}. Thanks for breaking that down.\n"
+            f"</scriptCast>\n\n"
+            f"**Context for Script Generation:**\n\n"
+            f"--- Summaries (Prioritize higher scores) ---\n{combined_summaries_text}\n---\n\n"
+            f"{full_reference_docs_text}\n\n" # This will be empty if no full docs were used
+            f"Remember: The entire output MUST be ONLY the dialogue script (with 'Host:'/'Guest:' labels) enclosed in a single `<scriptCast>` tag. NO OTHER TEXT OR TAGS outside of this single tag pair."
+        )
     # Return counts for both summaries and full reference docs used
     return prompt, num_summaries_used, num_ref_docs_used
 
 
-def format_refinement_prompt(initial_script_text, topic, host_profile, guest_profile):
+def format_refinement_prompt(initial_script_text, topic, host_profile, guest_profile, args=None):
     """Formats the prompt for the script refinement AI call."""
 
     podcast_name = host_profile.get('podcast_name', 'Podcast')
@@ -131,46 +173,89 @@ def format_refinement_prompt(initial_script_text, topic, host_profile, guest_pro
     host_name = host_profile.get('name', 'your host')
     outro_line = f"Host: Thank you for joining us! I'm {host_name}, and this has been {podcast_name}. Until next time!"
 
-    prompt = (
-        f"You are an AI script editor for the podcast '{podcast_name}'. Your task is to refine the provided podcast script to make it sound more natural and human-like, based on the character profiles, and to prepare it for Text-to-Speech (TTS) by expanding abbreviations and numbers.\n\n"
-        f"**Characters:**\n\n"
-        f"--- HOST PROFILE ---\n{host_details}\n--------------------\n\n"
-        f"--- GUEST PROFILE ---\n{guest_details}\n---------------------\n\n"
-        f"**Podcast Topic:** {topic}\n\n"
-        f"**Task:**\n"
-        f"Review and refine the following podcast script. Apply these specific changes:\n"
-        f"1. **Enhance Natural Dialogue:** Adjust phrasing, add minor interjections (like 'uh-huh', 'right', 'interesting', 'you know'), smooth transitions, and ensure the conversation flows naturally according to the host and guest personalities. Maintain the '{host_profile.get('vibe', 'chill but informal')}' vibe.\n"
-        f"2. **TTS Prep - Expand Abbreviations:** Find common abbreviations (e.g., 'AI', 'LLM', 'API', 'CPU', 'GPU', 'etc.') and expand them appropriately for speech (e.g., 'Artificial Intelligence' or 'A.I.', 'L.L.M.', 'A.P.I.'). Use context; spell out the first time if helpful.\n"
-        f"3. **TTS Prep - Expand Numbers/Currency/Symbols:** Convert numerical figures, percentages, currency amounts, and common symbols into words suitable for speech. Examples:\n"
-        f"   - '$40' -> 'forty dollars'\n"
-        f"   - '0.45' -> 'point four five' or 'forty-five cents'\n"
-        f"   - '$45B' / $45bn -> 'forty-five billion dollars'\n"
-        f"   - '50%' -> 'fifty percent'\n"
-        f"   - '2024' -> 'twenty twenty-four' (year) or 'two thousand twenty-four'\n"
-        f"   - '#' -> 'number' or 'hash'\n"
-        f"   - '@' -> 'at'\n"
-        f"   - '&' -> 'and'\n"
-        f"4. **TTS Prep - Handle Asterisks/Emphasis:** Remove all asterisks used for emphasis (e.g., *important* or **critical**). If emphasis is still needed, rephrase the text or enclose it in double quotes (e.g., \"important\").\n"
-        f"5. **Maintain Structure:** Keep the original 'Host: ' and 'Guest: ' labels for each line.\n"
-        f"6. **Character Consistency:** Ensure the refined dialogue still perfectly matches the character profiles.\n"
-        f"7. **Mandatory Host Outro:** Ensure the *very last line* of the script is spoken by the Host and is EXACTLY: '{outro_line}'\n\n"
-        f"**Original Script to Refine:**\n---\n{initial_script_text}\n---\n\n"
-        f"**CRITICAL FORMATTING RULES (OUTPUT MUST FOLLOW EXACTLY):**\n"
-        f"1. **OUTPUT TAG:** You MUST enclose the *entire* refined podcast script dialogue within a single pair of `<scriptCast>` tags.\n"
-        f"2. **DIALOGUE FORMAT:** Inside the `<scriptCast>` tag, each line of dialogue MUST start with either 'Host: ' or 'Guest: ', followed by their speech.\n"
-        f"3. **NO EXTRA TEXT:** ONLY include the dialogue lines (starting with 'Host: ' or 'Guest: ') inside the `<scriptCast>` tags. **ABSOLUTELY NO** other text, introductory phrases, explanations, or thinking tags (`<think>...</think>`) should be present anywhere in the final output.\n\n"
-        f"**Example of CORRECT Refined Output Format:**\n"
-        f"<scriptCast>\n"
-        f"Host: Welcome back to {podcast_name}, everyone! Today, we're diving into the fascinating topic of '{topic}'. {guest_profile.get('name', 'Guest')}, thanks for joining us. Could you give us the, you know, the high-level view?\n"
-        f"Guest: Absolutely, {host_profile.get('name', 'Host')}! Great to be here. Right, so at its core, {topic} is about...\n"
-        f"Host: Interesting. You mentioned achieving, uh, ninety-five percent accuracy? Could you expand on that?\n"
-        f"Guest: Certainly. That relates to the model we developed back in twenty twenty-three...\n"
-        f"Host: Okay, so if I understand correctly, you're saying it cost forty million dollars?\n"
-        f"Guest: Exactly! A significant investment.\n"
-        f"{outro_line}\n" # Ensure example includes the outro
-        f"</scriptCast>\n\n"
-        f"Remember: The entire output MUST be ONLY the refined dialogue script (with 'Host:'/'Guest:' labels) enclosed in a single `<scriptCast>` tag, ending with the specific Host outro line."
-    )
+    # Check for single speaker mode
+    single_speaker_mode = getattr(args, 'single_speaker', False) if args else False
+
+    if single_speaker_mode:
+        # Single speaker refinement prompt
+        prompt = (
+            f"You are an AI script editor for the podcast '{podcast_name}'. Your task is to refine the provided single-speaker podcast script to make it sound more natural and human-like, based on the host character profile, and to prepare it for Text-to-Speech (TTS) by expanding abbreviations and numbers.\n\n"
+            f"**Host Character:**\n\n"
+            f"--- HOST PROFILE ---\n{host_details}\n--------------------\n\n"
+            f"**Podcast Topic:** {topic}\n\n"
+            f"**Task:**\n"
+            f"Review and refine the following single-speaker podcast script. Apply these specific changes:\n"
+            f"1. **Enhance Natural Monologue:** Adjust phrasing, add minor interjections (like 'um', 'you know', 'well', 'now'), smooth transitions, and ensure the presentation flows naturally according to the host personality. Maintain the '{host_profile.get('vibe', 'chill but informal')}' vibe.\n"
+            f"2. **TTS Prep - Expand Abbreviations:** Find common abbreviations (e.g., 'AI', 'LLM', 'API', 'CPU', 'GPU', 'etc.') and expand them appropriately for speech (e.g., 'Artificial Intelligence' or 'A.I.', 'L.L.M.', 'A.P.I.'). Use context; spell out the first time if helpful.\n"
+            f"3. **TTS Prep - Expand Numbers/Currency/Symbols:** Convert numerical figures, percentages, currency amounts, and common symbols into words suitable for speech. Examples:\n"
+            f"   - '$40' -> 'forty dollars'\n"
+            f"   - '0.45' -> 'point four five' or 'forty-five cents'\n"
+            f"   - '$45B' / $45bn -> 'forty-five billion dollars'\n"
+            f"   - '50%' -> 'fifty percent'\n"
+            f"   - '2024' -> 'twenty twenty-four' (year) or 'two thousand twenty-four'\n"
+            f"   - '#' -> 'number' or 'hash'\n"
+            f"   - '@' -> 'at'\n"
+            f"   - '&' -> 'and'\n"
+            f"4. **TTS Prep - Handle Asterisks/Emphasis:** Remove all asterisks used for emphasis (e.g., *important* or **critical**). If emphasis is still needed, rephrase the text or enclose it in double quotes (e.g., \"important\").\n"
+            f"5. **Maintain Structure:** Keep only 'Host: ' labels for each line. **NO Guest lines should be present.**\n"
+            f"6. **Character Consistency:** Ensure the refined monologue perfectly matches the host character profile.\n"
+            f"7. **Mandatory Host Outro:** Ensure the *very last line* of the script is spoken by the Host and is EXACTLY: '{outro_line}'\n\n"
+            f"**Original Script to Refine:**\n---\n{initial_script_text}\n---\n\n"
+            f"**CRITICAL FORMATTING RULES (OUTPUT MUST FOLLOW EXACTLY):**\n"
+            f"1. **OUTPUT TAG:** You MUST enclose the *entire* refined podcast script dialogue within a single pair of `<scriptCast>` tags.\n"
+            f"2. **DIALOGUE FORMAT:** Inside the `<scriptCast>` tag, each line of dialogue MUST start with 'Host: ', followed by their speech. **NO Guest lines should be included.**\n"
+            f"3. **NO EXTRA TEXT:** ONLY include the Host dialogue lines (starting with 'Host: ') inside the `<scriptCast>` tags. **ABSOLUTELY NO** other text, introductory phrases, explanations, or thinking tags (`<think>...</think>`) should be present anywhere in the final output.\n\n"
+            f"**Example of CORRECT Single Speaker Refined Output Format:**\n"
+            f"<scriptCast>\n"
+            f"Host: Welcome to {podcast_name}, everyone! Today, we're, uh, diving into the fascinating topic of '{topic}'. Now, you might be wondering what makes this so interesting...\n"
+            f"Host: Well, let me tell you about something that really caught my attention. When I was researching this, I found that, you know, ninety-five percent of people don't realize...\n"
+            f"Host: But here's where it gets really interesting. Back in twenty twenty-three, researchers discovered...\n"
+            f"{outro_line}\n"
+            f"</scriptCast>\n\n"
+            f"Remember: The entire output MUST be ONLY the Host dialogue lines (with 'Host:' labels) enclosed in a single `<scriptCast>` tag, ending with the specific Host outro line."
+        )
+    else:
+        # Original two-speaker refinement prompt
+        prompt = (
+            f"You are an AI script editor for the podcast '{podcast_name}'. Your task is to refine the provided podcast script to make it sound more natural and human-like, based on the character profiles, and to prepare it for Text-to-Speech (TTS) by expanding abbreviations and numbers.\n\n"
+            f"**Characters:**\n\n"
+            f"--- HOST PROFILE ---\n{host_details}\n--------------------\n\n"
+            f"--- GUEST PROFILE ---\n{guest_details}\n---------------------\n\n"
+            f"**Podcast Topic:** {topic}\n\n"
+            f"**Task:**\n"
+            f"Review and refine the following podcast script. Apply these specific changes:\n"
+            f"1. **Enhance Natural Dialogue:** Adjust phrasing, add minor interjections (like 'uh-huh', 'right', 'interesting', 'you know'), smooth transitions, and ensure the conversation flows naturally according to the host and guest personalities. Maintain the '{host_profile.get('vibe', 'chill but informal')}' vibe.\n"
+            f"2. **TTS Prep - Expand Abbreviations:** Find common abbreviations (e.g., 'AI', 'LLM', 'API', 'CPU', 'GPU', 'etc.') and expand them appropriately for speech (e.g., 'Artificial Intelligence' or 'A.I.', 'L.L.M.', 'A.P.I.'). Use context; spell out the first time if helpful.\n"
+            f"3. **TTS Prep - Expand Numbers/Currency/Symbols:** Convert numerical figures, percentages, currency amounts, and common symbols into words suitable for speech. Examples:\n"
+            f"   - '$40' -> 'forty dollars'\n"
+            f"   - '0.45' -> 'point four five' or 'forty-five cents'\n"
+            f"   - '$45B' / $45bn -> 'forty-five billion dollars'\n"
+            f"   - '50%' -> 'fifty percent'\n"
+            f"   - '2024' -> 'twenty twenty-four' (year) or 'two thousand twenty-four'\n"
+            f"   - '#' -> 'number' or 'hash'\n"
+            f"   - '@' -> 'at'\n"
+            f"   - '&' -> 'and'\n"
+            f"4. **TTS Prep - Handle Asterisks/Emphasis:** Remove all asterisks used for emphasis (e.g., *important* or **critical**). If emphasis is still needed, rephrase the text or enclose it in double quotes (e.g., \"important\").\n"
+            f"5. **Maintain Structure:** Keep the original 'Host: ' and 'Guest: ' labels for each line.\n"
+            f"6. **Character Consistency:** Ensure the refined dialogue still perfectly matches the character profiles.\n"
+            f"7. **Mandatory Host Outro:** Ensure the *very last line* of the script is spoken by the Host and is EXACTLY: '{outro_line}'\n\n"
+            f"**Original Script to Refine:**\n---\n{initial_script_text}\n---\n\n"
+            f"**CRITICAL FORMATTING RULES (OUTPUT MUST FOLLOW EXACTLY):**\n"
+            f"1. **OUTPUT TAG:** You MUST enclose the *entire* refined podcast script dialogue within a single pair of `<scriptCast>` tags.\n"
+            f"2. **DIALOGUE FORMAT:** Inside the `<scriptCast>` tag, each line of dialogue MUST start with either 'Host: ' or 'Guest: ', followed by their speech.\n"
+            f"3. **NO EXTRA TEXT:** ONLY include the dialogue lines (starting with 'Host: ' or 'Guest: ') inside the `<scriptCast>` tags. **ABSOLUTELY NO** other text, introductory phrases, explanations, or thinking tags (`<think>...</think>`) should be present anywhere in the final output.\n\n"
+            f"**Example of CORRECT Refined Output Format:**\n"
+            f"<scriptCast>\n"
+            f"Host: Welcome back to {podcast_name}, everyone! Today, we're diving into the fascinating topic of '{topic}'. {guest_profile.get('name', 'Guest')}, thanks for joining us. Could you give us the, you know, the high-level view?\n"
+            f"Guest: Absolutely, {host_profile.get('name', 'Host')}! Great to be here. Right, so at its core, {topic} is about...\n"
+            f"Host: Interesting. You mentioned achieving, uh, ninety-five percent accuracy? Could you expand on that?\n"
+            f"Guest: Certainly. That relates to the model we developed back in twenty twenty-three...\n"
+            f"Host: Okay, so if I understand correctly, you're saying it cost forty million dollars?\n"
+            f"Guest: Exactly! A significant investment.\n"
+            f"{outro_line}\n" # Ensure example includes the outro
+            f"</scriptCast>\n\n"
+            f"Remember: The entire output MUST be ONLY the refined dialogue script (with 'Host:'/'Guest:' labels) enclosed in a single `<scriptCast>` tag, ending with the specific Host outro line."
+        )
     return prompt
 
 
@@ -224,11 +309,23 @@ def generate_and_refine_script(summaries_with_scores, reference_docs_content, to
             except IOError: pass
         return None
 
-    # Basic validation
-    if not re.search(r'^(Host|Guest):', initial_script_text, re.MULTILINE):
-         print("\nWarning: Initial script content doesn't seem to contain 'Host:' or 'Guest:' labels.")
-         log_to_file("Script Gen Warning: Initial script missing Host:/Guest: labels.")
-         # Proceed to refinement, maybe it can fix it?
+    # Basic validation - check for single speaker mode
+    single_speaker_mode = getattr(args, 'single_speaker', False)
+    if single_speaker_mode:
+        # For single speaker, only check for Host: labels
+        if not re.search(r'^Host:', initial_script_text, re.MULTILINE):
+            print("\nWarning: Single speaker script content doesn't seem to contain 'Host:' labels.")
+            log_to_file("Script Gen Warning: Single speaker script missing Host: labels.")
+        # Check that there are no Guest: lines in single speaker mode
+        if re.search(r'^Guest:', initial_script_text, re.MULTILINE):
+            print("\nWarning: Single speaker script contains 'Guest:' labels when it shouldn't.")
+            log_to_file("Script Gen Warning: Single speaker script incorrectly contains Guest: labels.")
+    else:
+        # For two-speaker mode, check for both Host and Guest labels
+        if not re.search(r'^(Host|Guest):', initial_script_text, re.MULTILINE):
+            print("\nWarning: Initial script content doesn't seem to contain 'Host:' or 'Guest:' labels.")
+            log_to_file("Script Gen Warning: Initial script missing Host:/Guest: labels.")
+            # Proceed to refinement, maybe it can fix it?
 
 
     line_count = initial_script_text.count('\n') + 1
@@ -244,7 +341,7 @@ def generate_and_refine_script(summaries_with_scores, reference_docs_content, to
 
 
     # --- Refinement Step ---
-    refinement_prompt = format_refinement_prompt(initial_script_text, topic, host_profile, guest_profile)
+    refinement_prompt = format_refinement_prompt(initial_script_text, topic, host_profile, guest_profile, args)
 
     # Save refinement prompt
     if run_archive_dir:
@@ -283,15 +380,32 @@ def generate_and_refine_script(summaries_with_scores, reference_docs_content, to
                     with open(failed_script_path, 'w', encoding='utf-8') as fsf: fsf.write(cleaned_refined_response)
                 except IOError: pass
         else:
-             # Basic validation
-            if not re.search(r'^(Host|Guest):', refined_script_text, re.MULTILINE):
-                 print("\nWarning: Refined script content missing 'Host:'/'Guest:' labels. Using initial script.")
-                 log_to_file("Script Refinement Warning: Refined script missing Host:/Guest: labels. Using initial script.")
-                 final_script_text = initial_script_text # Fallback
+             # Basic validation - check for single speaker mode
+            single_speaker_mode = getattr(args, 'single_speaker', False)
+            if single_speaker_mode:
+                # For single speaker, only check for Host: labels
+                if not re.search(r'^Host:', refined_script_text, re.MULTILINE):
+                    print("\nWarning: Refined single speaker script missing 'Host:' labels. Using initial script.")
+                    log_to_file("Script Refinement Warning: Refined single speaker script missing Host: labels. Using initial script.")
+                    final_script_text = initial_script_text # Fallback
+                elif re.search(r'^Guest:', refined_script_text, re.MULTILINE):
+                    print("\nWarning: Refined single speaker script contains 'Guest:' labels. Using initial script.")
+                    log_to_file("Script Refinement Warning: Refined single speaker script incorrectly contains Guest: labels. Using initial script.")
+                    final_script_text = initial_script_text # Fallback
+                else:
+                    print("Single speaker script refinement successful.")
+                    log_to_file("Script Refinement: Single speaker success.")
+                    final_script_text = refined_script_text # Use refined script
             else:
-                 print("Script refinement successful.")
-                 log_to_file("Script Refinement: Success.")
-                 final_script_text = refined_script_text # Use refined script
+                # For two-speaker mode, check for both Host and Guest labels
+                if not re.search(r'^(Host|Guest):', refined_script_text, re.MULTILINE):
+                    print("\nWarning: Refined script content missing 'Host:'/'Guest:' labels. Using initial script.")
+                    log_to_file("Script Refinement Warning: Refined script missing Host:/Guest: labels. Using initial script.")
+                    final_script_text = initial_script_text # Fallback
+                else:
+                    print("Script refinement successful.")
+                    log_to_file("Script Refinement: Success.")
+                    final_script_text = refined_script_text # Use refined script
 # --- Save Final Script ---
     topic_slug = re.sub(r'\W+', '_', topic)[:50] # Sanitize topic for filename
 

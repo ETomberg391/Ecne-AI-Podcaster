@@ -57,6 +57,10 @@ def parse_tts_arguments():
                         help='Enable development mode: launch GUI to review/redo segments before finalizing.')
     parser.add_argument('--guest-breakup', action='store_true',
                         help='Break Guest dialogue into sentences for separate TTS processing.')
+    parser.add_argument('--tts-max-retries', type=int, default=3,
+                        help='Maximum number of retry attempts for failed TTS requests (default: 3).')
+    parser.add_argument('--tts-timeout', type=int, default=180,
+                        help='Timeout in seconds for each TTS request (default: 180).')
 
     # --- Video Generation Arguments (used when --dev is enabled) ---
     video_group = parser.add_argument_group('Video Generation Options (--dev mode only)')
