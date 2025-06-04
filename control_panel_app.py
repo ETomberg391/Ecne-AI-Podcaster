@@ -138,6 +138,12 @@ def find_output_files(base_dir):
                     if report_files:
                         relative_path = os.path.relpath(report_files[0], outputs_base_dir)
                         final_files.append(relative_path)
+                    
+                    # Only include the YouTube description file if it exists
+                    youtube_desc_files = [f for f in files_in_latest_run if f.endswith('youtube_description.md')]
+                    if youtube_desc_files:
+                        relative_path = os.path.relpath(youtube_desc_files[0], outputs_base_dir)
+                        final_files.append(relative_path)
                 except OSError as e:
                     print(f"Error listing files in {latest_run_dir}: {e}")
         except OSError as e:
@@ -643,7 +649,7 @@ def generate_script():
     boolean_flags = {
         'combine-keywords': '--combine-keywords', 'no-search': '--no-search',
         'reference-docs-summarize': '--reference-docs-summarize', 'skip_refinement': '--skip-refinement',
-        'no-reddit': '--no-reddit', 'report': '--report', 'skip-audio': '--skip-audio',
+        'no-reddit': '--no-reddit', 'report': '--report', 'youtube-description': '--youtube-description',
         'single-speaker': '--single-speaker',
     }
     for field, arg in boolean_flags.items():
