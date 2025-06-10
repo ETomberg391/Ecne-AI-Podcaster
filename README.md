@@ -1,3 +1,7 @@
+Update Notes 6/10/2025:
+- Working on restructuring the installation scripts to be easier, but also include no built-in sudo, and a installation_deadme writeup on what is being installed for transparency.
+- Also working on documentation folder to describe how to customize the podcast (Characters, images, background, music, voices, etc). All of it relatively easy to customize.
+- No plans currently for dia-tts, but keeping my eyes open for any new developing tts services to incorporate that might work better (Preferrably in the same docker format and vram requirements of no more than 6gb vram).
 
 
 # Ecne AI Podcaster
