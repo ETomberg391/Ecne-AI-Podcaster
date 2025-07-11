@@ -1,0 +1,8 @@
+.env
+settings/llm_settings/ai_models.yml
+/orpheus_tts_setup/*
+functions/__pycache__/*
+*/*/__pycache__/*
+/outputs/*
+/research/*
+/uploads/*

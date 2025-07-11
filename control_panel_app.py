@@ -10,6 +10,7 @@ from dotenv import load_dotenv, set_key
 import traceback
 import datetime
 import time
+from functions.ai import call_ai_api
 
 # Load environment variables from .env file at the start
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
@@ -702,6 +703,70 @@ def generate_script():
     process_thread.start()
 
     return jsonify({"status": "processing", "message": f"{process_type.replace('_', ' ').title()} started. Please wait for progress."})
+
+@control_panel_app.route('/generate_ai_suggestions', methods=['POST'])
+def generate_ai_suggestions():
+    """
+    Generates topic, keywords, and guidance using AI based on user description.
+    """
+    data = request.json
+    description = data.get('description')
+    llm_model_key = data.get('llm_model')
+
+    if not description or not llm_model_key:
+        return jsonify({"status": "error", "message": "Description and LLM model are required."}), 400
+
+    llm_settings = load_llm_settings()
+    selected_model_config = llm_settings.get(llm_model_key)
+
+    if not selected_model_config:
+        return jsonify({"status": "error", "message": f"LLM model '{llm_model_key}' not found in settings."}), 404
+
+    # Prepare config for call_ai_api
+    ai_config = {
+        "selected_model_config": selected_model_config,
+        "final_model_key": llm_model_key # Pass the key for logging/error messages
+    }
+
+    prompt_template = """
+    Based on the following podcast description, please generate a concise Topic, three Key Phrases for searching (comma-separated), and detailed Guidance for the podcast script.
+    Ensure each output is enclosed in specific XML-like tags:
+    <Topic_Idea>Your generated topic here</Topic_Idea>
+    <Key_Phrases>keyword1, keyword2, keyword3</Key_Phrases>
+    <Guidance_Idea>Your detailed guidance here</Guidance_Idea>
+
+    Podcast Description:
+    {description}
+    """
+    prompt = prompt_template.format(description=description)
+
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        print(f"Attempt {attempt} to generate AI suggestions for '{llm_model_key}'...")
+        raw_response, cleaned_response = call_ai_api(prompt, ai_config, tool_name="AI Suggestions")
+
+        if cleaned_response:
+            topic_match = re.search(r"<Topic_Idea>(.*?)</Topic_Idea>", cleaned_response, re.DOTALL)
+            keywords_match = re.search(r"<Key_Phrases>(.*?)</Key_Phrases>", cleaned_response, re.DOTALL)
+            guidance_match = re.search(r"<Guidance_Idea>(.*?)</Guidance_Idea>", cleaned_response, re.DOTALL)
+
+            topic = topic_match.group(1).strip() if topic_match else None
+            keywords = keywords_match.group(1).strip() if keywords_match else None
+            guidance = guidance_match.group(1).strip() if guidance_match else None
+
+            if topic and keywords and guidance:
+                return jsonify({
+                    "status": "success",
+                    "topic": topic,
+                    "keywords": keywords,
+                    "guidance": guidance
+                })
+            else:
+                print(f"Attempt {attempt} failed to extract all required fields. Retrying...")
+        else:
+            print(f"Attempt {attempt} received no response or an error from AI. Retrying...")
+
+    return jsonify({"status": "error", "message": f"Failed to generate AI suggestions after {max_attempts} attempts. Please try again or refine your description."}), 500
 
 @control_panel_app.route('/generate_podcast_video', methods=['POST'])
 def generate_podcast_video():

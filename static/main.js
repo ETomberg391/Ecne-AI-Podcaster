@@ -94,6 +94,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Script Builder Specifics (from script.js) ---
     const scriptForm = document.getElementById('script-form');
     if (scriptForm) {
+        // Easy Mode elements
+        const easyModeButton = document.getElementById('easy-mode-button');
+        const easyModeModal = document.getElementById('easy-mode-modal');
+        const closeModalButton = easyModeModal.querySelector('.close-button');
+        const researchDescriptionTextarea = document.getElementById('research-description');
+        const easyModeLlmModelSelect = document.getElementById('easy-mode-llm-model'); // New LLM select for easy mode
+        const submitResearchDescriptionButton = document.getElementById('submit-research-description');
+        const easyModeStatusDiv = document.getElementById('easy-mode-status');
+        const easyModeSpinner = document.getElementById('easy-mode-spinner');
+        const easyModeMessageSpan = document.getElementById('easy-mode-message');
+        const topicInput = document.getElementById('topic');
+        const keywordsInput = document.getElementById('keywords');
+        const guidanceTextarea = document.getElementById('guidance');
+
         const referenceDocsDropArea = document.getElementById('reference-docs-drop-area');
         const referenceDocsList = document.getElementById('reference-docs-list');
         const referenceDocsInput = document.getElementById('reference-docs');
@@ -130,6 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Load LLM Models for Dropdown
         const llmModelSelect = document.getElementById('llm-model');
+        const easyModeLlmSelect = document.getElementById('easy-mode-llm-model');
         async function loadLlmModels() {
             if (!llmModelSelect) return;
             try {
@@ -138,11 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (modelsData.llm_models) {
                      llmModelSelect.innerHTML = '<option value="">Select a model</option>';
+                     easyModeLlmSelect.innerHTML = '<option value="">Select a model</option>';
                      modelsData.llm_models.forEach(modelKey => {
                           const option = document.createElement('option');
                           option.value = modelKey;
                           option.textContent = modelKey;
-                          llmModelSelect.appendChild(option);
+                          llmModelSelect.appendChild(option.cloneNode(true));
+                          easyModeLlmSelect.appendChild(option);
                      });
                 }
             } catch (error) {
@@ -196,6 +213,90 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (stopScriptButton) stopScriptButton.style.display = 'none';
                 if (closeScriptModalButton) closeScriptModalButton.style.display = 'inline-block';
             }
+        });
+
+        // --- Easy Mode Logic ---
+        easyModeButton.addEventListener('click', function() {
+            easyModeModal.style.display = 'block';
+            researchDescriptionTextarea.value = ''; // Clear previous input
+            easyModeStatusDiv.style.display = 'none'; // Hide status initially
+        });
+
+        closeModalButton.addEventListener('click', function() {
+            easyModeModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', function(event) {
+            if (event.target == easyModeModal) {
+                easyModeModal.style.display = 'none';
+            }
+        });
+
+        submitResearchDescriptionButton.addEventListener('click', async function() {
+            const description = researchDescriptionTextarea.value.trim();
+            if (!description) {
+                alert('Please provide a description.');
+                return;
+            }
+
+            easyModeStatusDiv.style.display = 'flex';
+            easyModeSpinner.style.display = 'block';
+            easyModeMessageSpan.textContent = 'Generating AI suggestions...';
+            submitResearchDescriptionButton.disabled = true;
+
+            const selectedLlmModel = easyModeLlmModelSelect.value; // Use the easy mode specific select
+            if (!selectedLlmModel) {
+                alert('Please select an LLM Model in the popup.'); // Updated message
+                easyModeStatusDiv.style.display = 'none';
+                submitResearchDescriptionButton.disabled = false;
+                return;
+            }
+
+            let attempts = 0;
+            const maxAttempts = 3;
+            let success = false;
+
+            while (attempts < maxAttempts && !success) {
+                attempts++;
+                easyModeMessageSpan.textContent = `Generating AI suggestions (Attempt ${attempts}/${maxAttempts})...`;
+                try {
+                    const response = await fetch('/generate_ai_suggestions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            description: description,
+                            llm_model: selectedLlmModel
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        topicInput.value = data.topic || '';
+                        keywordsInput.value = data.keywords || '';
+                        guidanceTextarea.value = data.guidance || '';
+                        alert('AI suggestions generated successfully!');
+                        success = true;
+                        easyModeModal.style.display = 'none';
+                    } else {
+                        console.error('AI suggestion generation failed:', data.message);
+                        if (attempts === maxAttempts) {
+                            alert(`Failed to generate AI suggestions after ${maxAttempts} attempts: ${data.message}`);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching AI suggestions:', error);
+                    if (attempts === maxAttempts) {
+                        alert(`An error occurred during AI suggestion generation after ${maxAttempts} attempts.`);
+                    }
+                }
+            }
+
+            easyModeStatusDiv.style.display = 'none';
+            easyModeSpinner.style.display = 'none';
+            submitResearchDescriptionButton.disabled = false;
         });
 
         // Handle Script Stop Button Click

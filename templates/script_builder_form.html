@@ -14,6 +14,8 @@
             <a href="{{ url_for('index') }}" class="back-button">Back to Dashboard</a>
         </nav>
 
+        <button type="button" id="easy-mode-button" class="easy-mode-button">✨ Easy Mode: AI Topic/Keywords/Guidance</button>
+
         <form id="script-form">
             <div class="form-group">
                 <label for="topic">Topic:</label>
@@ -167,5 +169,27 @@
     </div>
 
     <script src="{{ url_for('static', filename='main.js') }}"></script>
+
+    <!-- Easy Mode Popup -->
+    <div id="easy-mode-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Easy Mode: Describe Your Podcast Idea</h2>
+            <p>Please provide a detailed description of what you want your podcast to be about. The AI will generate a topic, keywords, and guidance for the script.</p>
+            <textarea id="research-description" rows="8" placeholder="E.g., 'I want to create a podcast episode about the history of video games, focusing on the console wars of the 90s and the rise of 3D gaming.'"></textarea>
+            <div class="form-group">
+                <label for="easy-mode-llm-model">LLM Model:</label>
+                <select id="easy-mode-llm-model" name="easy-mode-llm-model">
+                    <!-- Options will be populated dynamically by JavaScript -->
+                    <option value="">Select a model</option>
+                </select>
+            </div>
+            <button type="button" id="submit-research-description">Generate AI Suggestions</button>
+            <div id="easy-mode-status" style="display: none; align-items: center; justify-content: center; margin-top: 10px;">
+                <div id="easy-mode-spinner" class="spinner"></div>
+                <span id="easy-mode-message" style="margin-left: 10px; font-weight: bold;">Generating...</span>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
