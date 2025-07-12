@@ -1,7 +1,12 @@
-Update Notes 6/10/2025:
+Update Notes 7/12/2025:
+- Added an Easy mode for script building. Just click it, describe what you want to research and select your AI LLM backend. It will then automate a topic, 3 key words, and guidance.
+- Added a resume feature to podcast building. This will allow you to return to a completed podcast in case a segment wasn't perfect, giving you the ability to edit and rebuild without starting from scratch all over again.
+- Also reworked the output folders to better track scripts, archived podcasts, and finalized podcast videos.
+
+Still working on:
 - Working on restructuring the installation scripts to be easier, but also include no built-in sudo, and a installation_readme writeup on what is being installed for transparency.
 - Also working on documentation folder to describe how to customize the podcast (Characters, images, background, music, voices, etc). All of it relatively easy to customize.
-- No plans currently for dia-tts, but keeping my eyes open for any new developing tts services to incorporate that might work better (Preferrably in the same docker format and vram requirements of no more than 6gb vram).
+- No plans currently for dia-tts, but keeping my eyes open for any new developing tts services to incorporate that might work better (Preferrably in the same docker format and vram requirements of no more than 6gb vram). Chatterbox might be a good alternative.
 
 
 # Ecne AI Podcaster
