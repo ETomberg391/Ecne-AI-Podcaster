@@ -471,9 +471,8 @@ def main(config_path, output_path, args):
         print(f"Using default base temporary directory: {base_temp_dir}")
 
     # Use unique subdirs for work/temp based on output filename to avoid conflicts
-    output_filename_base = os.path.splitext(os.path.basename(output_path))[0]
-    work_dir = os.path.join(base_temp_dir, f'{output_filename_base}_work_v4')
-    temp_segments_dir = os.path.join(base_temp_dir, f'{output_filename_base}_temp_v4')
+    work_dir = os.path.join(base_temp_dir, 'work')
+    temp_segments_dir = os.path.join(base_temp_dir, 'temp')
     os.makedirs(work_dir, exist_ok=True)
     os.makedirs(temp_segments_dir, exist_ok=True)
     print(f"Using work directory (audio copies): {work_dir}")

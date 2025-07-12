@@ -146,9 +146,19 @@
                 </div>
             </div>
 
-            <button type="submit" id="generate-podcast-button">Generate Podcast</button>
+            <button type="submit" id="generate-podcast-button">Generate New Podcast</button>
             <button type="button" id="stop-podcast-button" style="background-color: #dc3545; display: none;">Stop Process</button>
         </form>
+
+        <div class="resume-section">
+            <h2>Or Resume Existing Podcast</h2>
+            <div id="resume-container" class="form-group inline">
+                <select id="podcast-select" name="podcast_select">
+                    <option value="">Loading existing podcasts...</option>
+                </select>
+                <button type="button" id="load-podcast-button">Load Selected Podcast</button>
+            </div>
+        </div>
 
         <div id="podcast-results" style="display: none;">
             <h2>Result</h2>

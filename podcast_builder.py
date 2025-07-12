@@ -55,6 +55,7 @@ def main():
     text_segments_for_dev = []
     success = False
     target_sr = None
+    dev_mode_process_result = None # To be accessible in the wider scope
 
     try:
         if args.input:
@@ -85,6 +86,23 @@ def main():
                 print("!! CRITICAL ERROR: Failed to generate audio for the input text after all retries.")
                 print("!! Please check TTS server status and try again.")
                 sys.exit(1)  # Exit with error rather than continuing with no audio
+
+        elif args.resume_from_json:
+            if not os.path.exists(args.resume_from_json):
+                print(f"!! Error: JSON file not found: {args.resume_from_json}")
+                sys.exit(1)
+            
+            print(f"Resuming podcast from {args.resume_from_json}...")
+            with open(args.resume_from_json, 'r') as f:
+                resumed_data = json.load(f)
+
+            print("\nEntering development mode to resume editing...")
+            dev_mode_process_result = dev_mode_process(
+                [], [], [], # Pass empty lists for initial files/texts
+                args.api_host, args.port, args.speed, temp_dir,
+                args.host_voice, args.guest_voice,
+                resumed_data=resumed_data # Pass the loaded data
+            )
 
         elif args.script:
             if not os.path.exists(args.script):
@@ -235,120 +253,123 @@ def main():
                         print(f"!! Stopping podcast generation to avoid incomplete output.")
                         sys.exit(1)  # Exit with error rather than creating incomplete podcast
 
-        files_to_concatenate = []
-        if args.dev:
-            if reviewable_indices:
-                 print("\nEntering development mode for segment review...")
-                 dev_mode_process_result = dev_mode_process(
-                     all_segment_files,
-                     reviewable_indices,
-                     text_segments_for_dev,
-                     args.api_host, args.port, args.speed, temp_dir, args.host_voice, args.guest_voice
-                 )
-
-                 if dev_mode_process_result is not None:
-                     print("Development mode finished. Processing final segments...")
-                     if dev_mode_process_result:
-                         print(f"Found {len(dev_mode_process_result)} segments with audio and visual details")
-                         
-                         output_dir = os.path.join(ARCHIVE_DIR, 'podcast_audio')
-                         os.makedirs(output_dir, exist_ok=True)
-                         print(f"Created podcast audio directory: {output_dir}")
-
-                         print(f"\nProcessing {len(dev_mode_process_result)} segments for final JSON...")
-                         for idx, segment in enumerate(dev_mode_process_result):
-                             original_audio_path = segment.get('audio_path')
-                             segment_type = segment.get('type', 'unknown')
-                             print(f"  Segment {idx+1} ({segment_type}): Checking path '{original_audio_path}'")
-
-                             is_temporary = original_audio_path and os.path.abspath(TEMP_AUDIO_DIR) in os.path.abspath(original_audio_path)
-
-                             if is_temporary:
-                                 if os.path.exists(original_audio_path):
-                                     try:
-                                         new_name = os.path.basename(original_audio_path)
-                                         new_path = os.path.join(output_dir, new_name)
-                                         if not os.path.exists(new_path) or os.path.getmtime(original_audio_path) > os.path.getmtime(new_path):
-                                             shutil.copy2(original_audio_path, new_path)
-                                             print(f"    -> Copied temp audio '{new_name}' to '{output_dir}'")
-                                         else:
-                                             print(f"    -> Audio '{new_name}' already exists in '{output_dir}', skipping copy.")
-                                         segment['audio_path'] = new_path
-                                         print(f"    -> Updated path to: {new_path}")
-                                     except Exception as copy_err:
-                                         print(f"    !! ERROR copying temp file '{original_audio_path}' to '{output_dir}': {copy_err}")
-                                         print(f"    !! Keeping original temporary path in JSON for segment {idx+1}.")
-                                 else:
-                                     print(f"    !! WARNING: Temporary audio file '{original_audio_path}' not found! Cannot copy.")
-                                     print(f"    !! Keeping original temporary path in JSON for segment {idx+1}.")
-                             elif original_audio_path:
-                                 if segment_type != 'intro' and segment_type != 'outro' and not os.path.exists(original_audio_path):
-                                      if segment_type in ['speech', 'silence']:
-                                           print(f"    !! WARNING: Non-temporary audio path '{original_audio_path}' does not exist for segment {idx+1} ({segment_type}).")
-                                 else:
-                                     print(f"    -> Path is not temporary or already processed.")
-                             else:
-                                 print(f"    -> No audio path found for segment {idx+1} ({segment_type}).")
-
-                         json_config_path = os.path.join(ARCHIVE_DIR, args.output + '.json')
-                         with open(json_config_path, 'w') as f:
-                             json.dump(dev_mode_process_result, f, indent=2)
-                         print(f"Saved structured segment details to {json_config_path}")
-
-                         print("\nAttempting to generate video from the finalized configuration...")
-                         script_name = os.path.splitext(os.path.basename(args.script))[0] if args.script else "output_video"
-                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                         video_output_filename = f"{script_name}_{timestamp}.mp4"
-                         video_output_path = os.path.join(FINAL_AUDIO_OUTPUT_DIR, video_output_filename)
-                         print(f"Saving video output to: {video_output_path}")
-
-                         video_args = argparse.Namespace(
-                             config_json=json_config_path,
-                             output_video=video_output_path,
-                             character_scale=args.video_character_scale,
-                             resolution=args.video_resolution,
-                             video_fade=args.video_fade,
-                             audio_fadein=5.0,
-                             audio_fadeout=5.0,
-                             fps=args.video_fps,
-                             intermediate_preset=args.video_intermediate_preset,
-                             intermediate_crf=args.video_intermediate_crf,
-                             final_audio_bitrate=args.video_final_audio_bitrate,
-                             workers=args.video_workers,
-                             keep_temp_files=args.video_keep_temp,
-                             temp_output_dir=ARCHIVE_DIR # Pass the archive directory
-                         )
-
-                         try:
-                             print(f"Calling video generator with args: {vars(video_args)}")
-                             generate_video(video_args.config_json, video_args.output_video, video_args)
-                             print(f"Video generation process initiated for {video_output_path}.")
-                             success = True
-                         except Exception as video_e:
-                             print(f"!! Error calling generate_podcast_videov4.main: {video_e}")
-                             success = False
-
-                 else:
-                     print("!! Development mode cancelled or failed to initialize. No output generated.")
-                     success = False
+            if args.dev:
+                if reviewable_indices:
+                    print("\nEntering development mode for segment review...")
+                    dev_mode_process_result = dev_mode_process(
+                        all_segment_files,
+                        reviewable_indices,
+                        text_segments_for_dev,
+                        args.api_host, args.port, args.speed, temp_dir, args.host_voice, args.guest_voice
+                    )
+                else:
+                    print("!! No audio segments were generated to review in development mode.")
+                    success = False
+            elif all_segment_files:
+                # This block handles non-dev-mode script processing
+                print("\nDev mode not enabled. Concatenating initial segments...")
+                final_audio_filename = f"{os.path.splitext(os.path.basename(args.script))[0]}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+                final_output_path = os.path.join(FINAL_AUDIO_OUTPUT_DIR, final_audio_filename)
+                print(f"Saving concatenated audio to: {final_output_path}")
+                success = concatenate_wavs(all_segment_files, final_output_path, target_sr)
             else:
-                 print("!! No audio segments were generated to review in development mode.")
-                 success = False
-        elif all_segment_files:
-            print("\nDev mode not enabled. Concatenating initial segments (no Intro/Outro)...")
-            basic_structured_details = []
-            for file_path in all_segment_files:
-                segment_type = 'silence' if 'silence' in os.path.basename(file_path).lower() else 'speech'
-                basic_structured_details.append({'type': segment_type, 'audio_path': file_path})
-            script_name = os.path.splitext(os.path.basename(args.script))[0] if args.script else "concatenated_output"
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            final_audio_filename = f"{script_name}_{timestamp}.wav"
-            final_output_path = os.path.join(FINAL_AUDIO_OUTPUT_DIR, final_audio_filename)
-            print(f"Saving concatenated audio to: {final_output_path}")
-            files_to_concatenate = [d['audio_path'] for d in basic_structured_details if d.get('audio_path')]
-            success = concatenate_wavs(files_to_concatenate, final_output_path, target_sr)
-        else:
-            print("!! No audio segments were generated successfully.")
+                print("!! No audio segments were generated successfully for the script.")
+
+        # This block now processes the result from either a new dev session or a resumed session
+        if dev_mode_process_result is not None:
+            print("Development mode finished. Processing final segments...")
+            if dev_mode_process_result:
+                print(f"Found {len(dev_mode_process_result)} segments with audio and visual details")
+                
+                # Determine script name and archive dir based on how we entered dev mode
+                if args.resume_from_json:
+                    script_name = os.path.splitext(os.path.basename(args.resume_from_json))[0]
+                    podcast_archive_dir = os.path.dirname(args.resume_from_json)
+                else: # This must be a new script from --dev
+                    script_name = os.path.splitext(os.path.basename(args.script))[0]
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    podcast_archive_dir = os.path.join(ARCHIVE_DIR, f"podcast_{script_name}_{timestamp}")
+
+                raw_audio_dir = os.path.join(podcast_archive_dir, 'raw')
+                os.makedirs(raw_audio_dir, exist_ok=True)
+                print(f"Using podcast archive directory: {podcast_archive_dir}")
+
+                print(f"\nProcessing {len(dev_mode_process_result)} segments for final JSON...")
+                for idx, segment in enumerate(dev_mode_process_result):
+                    original_audio_path = segment.get('audio_path')
+                    segment_type = segment.get('type', 'unknown')
+                    print(f"  Segment {idx+1} ({segment_type}): Checking path '{original_audio_path}'")
+
+                    is_temporary = original_audio_path and os.path.abspath(TEMP_AUDIO_DIR) in os.path.abspath(original_audio_path)
+
+                    if is_temporary:
+                        if os.path.exists(original_audio_path):
+                            try:
+                                new_name = os.path.basename(original_audio_path)
+                                new_path = os.path.join(raw_audio_dir, new_name)
+                                if not os.path.exists(new_path) or os.path.getmtime(original_audio_path) > os.path.getmtime(new_path):
+                                    shutil.copy2(original_audio_path, new_path)
+                                    print(f"    -> Copied temp audio '{new_name}' to '{raw_audio_dir}'")
+                                else:
+                                    print(f"    -> Audio '{new_name}' already exists in '{raw_audio_dir}', skipping copy.")
+                                segment['audio_path'] = new_path
+                                print(f"    -> Updated path to: {new_path}")
+                            except Exception as copy_err:
+                                print(f"    !! ERROR copying temp file '{original_audio_path}' to '{raw_audio_dir}': {copy_err}")
+                                print(f"    !! Keeping original temporary path in JSON for segment {idx+1}.")
+                        else:
+                            print(f"    !! WARNING: Temporary audio file '{original_audio_path}' not found! Cannot copy.")
+                            print(f"    !! Keeping original temporary path in JSON for segment {idx+1}.")
+                    elif original_audio_path:
+                        if segment_type != 'intro' and segment_type != 'outro' and not os.path.exists(original_audio_path):
+                                if segment_type in ['speech', 'silence']:
+                                    print(f"    !! WARNING: Non-temporary audio path '{original_audio_path}' does not exist for segment {idx+1} ({segment_type}).")
+                        else:
+                            print(f"    -> Path is not temporary or already processed.")
+                    else:
+                        print(f"    -> No audio path found for segment {idx+1} ({segment_type}).")
+
+                json_config_path = os.path.join(podcast_archive_dir, f"{script_name}.json")
+                with open(json_config_path, 'w') as f:
+                    json.dump(dev_mode_process_result, f, indent=2)
+                print(f"Saved structured segment details to {json_config_path}")
+
+                print("\nAttempting to generate video from the finalized configuration...")
+                timestamp_for_video = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                video_output_filename = f"{script_name}_{timestamp_for_video}.mp4"
+                video_output_path = os.path.join(FINAL_AUDIO_OUTPUT_DIR, video_output_filename)
+                print(f"Saving video output to: {video_output_path}")
+
+                video_args = argparse.Namespace(
+                    config_json=json_config_path,
+                    output_video=video_output_path,
+                    character_scale=args.video_character_scale,
+                    resolution=args.video_resolution,
+                    video_fade=args.video_fade,
+                    audio_fadein=5.0,
+                    audio_fadeout=5.0,
+                    fps=args.video_fps,
+                    intermediate_preset=args.video_intermediate_preset,
+                    intermediate_crf=args.video_intermediate_crf,
+                    final_audio_bitrate=args.video_final_audio_bitrate,
+                    workers=args.video_workers,
+                    keep_temp_files=args.video_keep_temp,
+                    temp_output_dir=podcast_archive_dir # Pass the new archive directory
+                )
+
+                try:
+                    print(f"Calling video generator with args: {vars(video_args)}")
+                    generate_video(video_args.config_json, video_args.output_video, video_args)
+                    print(f"Video generation process initiated for {video_output_path}.")
+                    success = True
+                except Exception as video_e:
+                    print(f"!! Error calling generate_podcast_videov4.main: {video_e}")
+                    success = False
+            else:
+                print("!! Development mode cancelled or failed to initialize. No output generated.")
+                success = False
+        elif not (args.input or args.script or args.resume_from_json):
+             print("!! No input provided. Please specify --input, --script, or --resume-from-json.")
 
     finally:
         print(f"\nCleaning up temporary audio directory: {TEMP_AUDIO_DIR}...")

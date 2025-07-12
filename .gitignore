@@ -6,3 +6,5 @@ functions/__pycache__/*
 /outputs/*
 /research/*
 /uploads/*
+*/*/__pycache__/*
+*/*/*/__pycache__/*

@@ -436,102 +436,81 @@ def update_waveform(app_instance, file_path):
         messagebox.showerror("Waveform Error", f"Could not display waveform.\n\nError: {e}")
         clear_waveform(app_instance) # Clear plot on error
 
-def add_special_segment(app_instance, segment_type):
-    """Adds an Intro or Outro segment to the GUI."""
+def add_special_segment(app_instance, segment_type, data=None):
+    """Adds an Intro or Outro segment to the GUI, optionally populating from data."""
     if segment_type not in ['intro', 'outro']:
         return
 
     gui_index = app_instance.segment_listbox.size()
     display_name = "Intro" if segment_type == 'intro' else "Outro"
-    default_music_list = app_instance.intro_music_files if segment_type == 'intro' else app_instance.outro_music_files
-    default_music = default_music_list[0] if default_music_list else NO_MUSIC
 
-    # Set Default Visuals
-    default_bg = app_instance.background_files[0] if app_instance.background_files else NO_IMAGE
-    default_host = _get_default_closed_image("host") # Call the module-level function
-    default_guest = _get_default_closed_image("guest") # Call the module-level function
+    if data:
+        # Populate from existing data
+        details = data.copy() # Work with a copy
+        print(f"TTSDevGUI: Adding resumed special segment: {display_name} (GUI Index {gui_index})")
+    else:
+        # Create new default data
+        default_music_list = app_instance.intro_music_files if segment_type == 'intro' else app_instance.outro_music_files
+        default_music = default_music_list[0] if default_music_list else NO_MUSIC
+        default_bg = app_instance.background_files[0] if app_instance.background_files else NO_IMAGE
+        default_host = _get_default_closed_image("host")
+        default_guest = _get_default_closed_image("guest")
 
-    details = {
-        'type': segment_type,
-        'text': f"[{display_name} Music]", # Placeholder text
-        'voice': None, # No voice
-        'apply_deesser': True, # Default de-esser state
-        'original_index': -1, # No corresponding index in original all_segment_files
-        'gain': 1.0, # Not applicable
-        'bg_image': default_bg,
-        'host_image': default_host,
-        'guest_image': default_guest,
-        'intro_music': default_music if segment_type == 'intro' else NO_MUSIC,
-        'outro_music': default_music if segment_type == 'outro' else NO_MUSIC,
-        'audio_path': default_music # Store the actual music path here for loading
-    }
+        details = {
+            'type': segment_type,
+            'text': f"[{display_name} Music]",
+            'voice': None,
+            'original_index': -1,
+            'gain': 1.0,
+            'bg_image': default_bg,
+            'host_image': default_host,
+            'guest_image': default_guest,
+            'intro_music': default_music if segment_type == 'intro' else NO_MUSIC,
+            'outro_music': default_music if segment_type == 'outro' else NO_MUSIC,
+            'audio_path': default_music
+        }
+        print(f"TTSDevGUI: Added new special segment: {display_name} (GUI Index {gui_index})")
+
     app_instance.reviewable_segment_details[gui_index] = details
-    # No mapping needed for gui_index_to_original_index for these special types
+    app_instance.segment_listbox.insert(tk.END, f"--- {display_name} ---")
 
-    # Add to listbox
-    app_instance.segment_listbox.insert(tk.END, f"--- {display_name} ---") # Use insert END
-    print(f"TTSDevGUI: Added special segment: {display_name} (GUI Index {gui_index})")
-
-def add_reviewable_segment(app_instance, original_index, file_path, text, voice, padding_ms=0):
-    """Adds a speech segment to the GUI for review, setting default visuals/music."""
+def add_reviewable_segment(app_instance, original_index, file_path, text, voice, padding_ms=0, data=None):
+    """Adds a speech segment to the GUI, optionally populating from data."""
     gui_index = app_instance.segment_listbox.size()
-    # Load default gain from voice config instead of hardcoding
-    voice_config = load_voice_config(voice)
-    default_gain = voice_config.get('gain_factor', 1.0) # Get gain from config, default 1.0
 
-    # Helper to find the default CLOSED image path
-    def _get_default_closed_image(character_type):
-        closed_dir = os.path.join(IMAGE_DIR, character_type, "closed")
-        print(f"DEBUG get_default_closed_image ({character_type}): Searching in '{closed_dir}'")
-        if not os.path.isdir(closed_dir):
-            print(f"DEBUG get_default_closed_image: Closed dir not found: {closed_dir}")
-            return NO_IMAGE
-        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')
-        try:
-            # Find first file matching extensions, sort to be deterministic
-            closed_images = sorted([
-                os.path.join(closed_dir, f)
-                for f in os.listdir(closed_dir)
-                if os.path.isfile(os.path.join(closed_dir, f)) and f.lower().endswith(image_extensions)
-            ])
-            print(f"DEBUG get_default_closed_image ({character_type}): Found potential closed images: {[os.path.basename(p) for p in closed_images]}")
-            if closed_images:
-                print(f"DEBUG get_default_closed_image ({character_type}): Using first found: {os.path.basename(closed_images[0])}")
-                return closed_images[0] # Return the full path of the first found closed image
-            else:
-                print(f"DEBUG get_default_closed_image ({character_type}): No images found in {closed_dir}")
-                return NO_IMAGE
-        except Exception as e:
-            print(f"DEBUG get_default_closed_image ({character_type}): Error listing dir {closed_dir}: {e}")
-            return NO_IMAGE
+    if data:
+        # Populate from existing data
+        details = data.copy() # Work with a copy
+        print(f"TTSDevGUI: Adding resumed speech segment: GUI Index {gui_index}, File: {details.get('audio_path')}")
+    else:
+        # Create new default data
+        voice_config = load_voice_config(voice)
+        default_gain = voice_config.get('gain_factor', 1.0)
+        default_bg = app_instance.background_files[0] if app_instance.background_files else NO_IMAGE
+        default_host_closed = _get_default_closed_image("host")
+        default_guest_closed = _get_default_closed_image("guest")
+        default_intro = next((f for f in app_instance.intro_music_files if f != NO_MUSIC), NO_MUSIC)
+        default_outro = next((f for f in app_instance.outro_music_files if f != NO_MUSIC), NO_MUSIC)
 
-    # Set Default Visuals and Music
-    default_bg = app_instance.background_files[0] if app_instance.background_files else NO_IMAGE
-    default_host_closed = _get_default_closed_image("host")   # Call the module-level function
-    default_guest_closed = _get_default_closed_image("guest") # Call the module-level function
-    default_intro = next((f for f in app_instance.intro_music_files if f != NO_MUSIC), NO_MUSIC)
-    default_outro = next((f for f in app_instance.outro_music_files if f != NO_MUSIC), NO_MUSIC)
+        details = {
+            'type': 'speech',
+            'text': text,
+            'voice': voice,
+            'original_index': original_index,
+            'gain': default_gain,
+            'bg_image': default_bg,
+            'host_image': default_host_closed,
+            'guest_image': default_guest_closed,
+            'intro_music': default_intro,
+            'outro_music': default_outro,
+            'audio_path': file_path,
+            'padding_ms': padding_ms,
+        }
+        print(f"TTSDevGUI: Added new reviewable segment: GUI Index {gui_index}, Original Index {original_index}, File: {file_path}")
 
-    print(f"DEBUG add_reviewable_segment (GUI Index {gui_index}): Default Host Closed Path: {default_host_closed}")
-    print(f"DEBUG add_reviewable_segment (GUI Index {gui_index}): Default Guest Closed Path: {default_guest_closed}")
-
-    app_instance.reviewable_segment_details[gui_index] = {
-        'type': 'speech',
-        'text': text,
-        'voice': voice,
-        'original_index': original_index,
-        'gain': default_gain,
-        'bg_image': default_bg,
-        'host_image': default_host_closed,   # Store the specific closed path as the base
-        'guest_image': default_guest_closed, # Store the specific closed path as the base
-        'intro_music': default_intro,
-        'outro_music': default_outro,
-        'audio_path': file_path,
-        'padding_ms': padding_ms,
-    }
+    app_instance.reviewable_segment_details[gui_index] = details
     app_instance.gui_index_to_original_index[gui_index] = original_index
-    update_segment_display_name(app_instance, gui_index, file_path)
-    print(f"TTSDevGUI: Added reviewable segment: GUI Index {gui_index}, Original Index {original_index}, File: {file_path}")
+    update_segment_display_name(app_instance, gui_index, details.get('audio_path'))
 
 def update_segment_display_name(app_instance, gui_index, file_path=None):
     """Updates the text displayed in the listbox for a given GUI index."""
