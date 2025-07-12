@@ -527,6 +527,24 @@ def get_available_scripts():
     
     return jsonify({"scripts": available_scripts})
 
+@control_panel_app.route('/api/podcasts', methods=['GET'])
+def get_podcasts():
+    """Scans the archive directory for podcast projects and returns them."""
+    archive_dir = control_panel_app.config['ARCHIVE_DIR']
+    podcasts = []
+    if os.path.exists(archive_dir):
+        for folder_name in os.listdir(archive_dir):
+            folder_path = os.path.join(archive_dir, folder_name)
+            if os.path.isdir(folder_path):
+                for file_name in os.listdir(folder_path):
+                    if file_name.endswith('.json'):
+                        podcasts.append({
+                            'name': folder_name,
+                            'json_path': os.path.join(folder_path, file_name)
+                        })
+                        break # Found json, move to next folder
+    return jsonify(podcasts)
+
 def detect_single_speaker_script(script_path):
     """
     Detects if a script file contains only Host speakers (single speaker mode).
@@ -792,24 +810,37 @@ def generate_podcast_video():
     command = ['python', script_path]
     command.append('--dev')
 
-    # Check if using a predefined script or uploaded file
-    selected_script = data.get('script_select')
-    script_file = uploaded_files.get('script_file')
-    
-    if selected_script and selected_script != 'custom' and selected_script != '':
-        # Using a predefined script from outputs/scripts
-        script_path = os.path.join(control_panel_app.config['OUTPUT_FOLDER'], selected_script)
-        if os.path.exists(script_path):
-            command.extend(['--script', script_path])
+    # Check if resuming from JSON or starting new
+    resume_json_path = data.get('resume_from_json')
+
+    if resume_json_path:
+        if os.path.exists(resume_json_path):
+            command.extend(['--resume-from-json', resume_json_path])
         else:
-            return jsonify({"status": "error", "message": f"Selected script file not found: {selected_script}"}), 400
-    elif script_file and script_file.filename:
-        # Using uploaded custom script file
-        filepath = os.path.join(control_panel_app.config['UPLOAD_FOLDER'], script_file.filename)
-        script_file.save(filepath)
-        command.extend(['--script', filepath])
+            return jsonify({"status": "error", "message": f"Selected JSON file not found: {resume_json_path}"}), 400
     else:
-        return jsonify({"status": "error", "message": "Please select a script from the dropdown or upload a custom script file."}), 400
+        # This block handles new podcast generation, so script validation is required.
+        selected_script = data.get('script_select')
+        script_file = uploaded_files.get('script_file')
+        
+        script_to_use = None
+        if selected_script and selected_script != 'custom' and selected_script != '':
+            # Using a predefined script from outputs/scripts
+            script_path_from_select = os.path.join(control_panel_app.config['OUTPUT_FOLDER'], selected_script)
+            if os.path.exists(script_path_from_select):
+                script_to_use = script_path_from_select
+            else:
+                return jsonify({"status": "error", "message": f"Selected script file not found: {selected_script}"}), 400
+        elif script_file and script_file.filename:
+            # Using uploaded custom script file
+            filepath = os.path.join(control_panel_app.config['UPLOAD_FOLDER'], script_file.filename)
+            script_file.save(filepath)
+            script_to_use = filepath
+        
+        if script_to_use:
+            command.extend(['--script', script_to_use])
+        else:
+            return jsonify({"status": "error", "message": "Please select a script from the dropdown or choose 'Custom' to upload a file."}), 400
 
     arg_map = {
         'host_voice': '--host-voice', 'guest_voice': '--guest-voice', 'silence': '--silence',

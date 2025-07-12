@@ -509,23 +509,90 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        // --- Resume Podcast Logic ---
+        const podcastSelect = document.getElementById('podcast-select');
+        const loadPodcastButton = document.getElementById('load-podcast-button');
+
+        async function loadExistingPodcasts() {
+            if (!podcastSelect) return;
+            try {
+                const response = await fetch('/api/podcasts');
+                const podcasts = await response.json();
+                
+                podcastSelect.innerHTML = ''; // Clear current options
+
+                if (podcasts.length === 0) {
+                    podcastSelect.innerHTML = '<option value="">No existing podcasts found</option>';
+                    loadPodcastButton.disabled = true;
+                } else {
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = '-- Select a podcast to resume --';
+                    podcastSelect.appendChild(defaultOption);
+
+                    podcasts.forEach(podcast => {
+                        const option = document.createElement('option');
+                        option.value = podcast.json_path;
+                        option.textContent = podcast.name;
+                        podcastSelect.appendChild(option);
+                    });
+                    loadPodcastButton.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error fetching existing podcasts:', error);
+                podcastSelect.innerHTML = '<option value="">Error loading podcasts</option>';
+                loadPodcastButton.disabled = true;
+            }
+        }
+
+        if (loadPodcastButton) {
+            loadPodcastButton.addEventListener('click', () => {
+                const selectedJson = podcastSelect.value;
+                if (!selectedJson) {
+                    alert("Please select a podcast to load.");
+                    return;
+                }
+                
+                console.log('Requesting to load podcast with JSON:', selectedJson);
+
+                // Create a hidden input to hold the resume path
+                let resumeInput = document.querySelector('input[name="resume_from_json"]');
+                if (!resumeInput) {
+                    resumeInput = document.createElement('input');
+                    resumeInput.type = 'hidden';
+                    resumeInput.name = 'resume_from_json';
+                    podcastForm.appendChild(resumeInput);
+                }
+                resumeInput.value = selectedJson;
+
+                // Submit the form
+                podcastForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            });
+        }
+        
+        // Initial load of existing podcasts
+        loadExistingPodcasts();
+
         // Handle Podcast Form Submission
         podcastForm.addEventListener('submit', async function(event) {
             event.preventDefault();
 
-            // Check if we have either a selected script or uploaded file
-            const selectedScript = scriptSelect ? scriptSelect.value : '';
-            const hasUploadedFile = scriptFile && scriptFile.files && scriptFile.files.length > 0;
-            
-            if (selectedScript === 'custom' && !hasUploadedFile) {
-                alert('Please upload a script file when "Custom" is selected.');
-                return;
-            } else if (!selectedScript && !hasUploadedFile) {
-                alert('Please select a script from the dropdown or choose "Custom" to upload a file.');
-                return;
-            } else if (selectedScript && selectedScript !== 'custom' && selectedScript !== '') {
-                // Using a predefined script, no file upload needed
-                // We'll handle this in the backend
+            // --- Validation ---
+            const resumeInput = document.querySelector('input[name="resume_from_json"]');
+            const isResuming = resumeInput && resumeInput.value;
+
+            // Only perform script validation if we are NOT resuming
+            if (!isResuming) {
+                const selectedScript = scriptSelect ? scriptSelect.value : '';
+                const hasUploadedFile = scriptFile && scriptFile.files && scriptFile.files.length > 0;
+
+                if (selectedScript === 'custom' && !hasUploadedFile) {
+                    alert('Please upload a script file when "Custom" is selected.');
+                    return;
+                } else if (!selectedScript && !hasUploadedFile) {
+                    alert('Please select a script from the dropdown or choose "Custom" to upload a file.');
+                    return;
+                }
             }
 
             if (generatePodcastButton) generatePodcastButton.disabled = true;

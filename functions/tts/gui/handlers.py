@@ -181,66 +181,63 @@ def on_segment_select(app_instance, event):
                 app_instance.gain_var.set(details.get('gain', 1.0))
                 app_instance._update_gain_label_format()
 
-                print(f"  Segment {app_instance.current_gui_selection}: Loading UI defaults from config for voice '{voice}'.")
+                # Load settings from the details dict if they exist, otherwise load from voice config
+                print(f"  Segment {app_instance.current_gui_selection}: Loading UI settings for voice '{voice}'.")
                 voice_config = load_voice_config(voice)
 
-                default_gain = voice_config.get('gain_factor', 1.0)
-                default_trim_end_ms = voice_config.get('trim_end_ms', 120)
-                default_nr_level = voice_config.get('nr_level', 35)
-                default_compress_thresh = voice_config.get('compress_thresh', 0.03)
-                default_compress_ratio = voice_config.get('compress_ratio', 2)
-                default_norm_frame_len = voice_config.get('norm_frame_len', 20)
-                default_norm_gauss_size = voice_config.get('norm_gauss_size', 15)
-                default_deesser_freq = voice_config.get('deesser_freq', 5000)
+                # Get gain, falling back from details -> voice_config -> default
+                gain = details.get('gain', voice_config.get('gain_factor', 1.0))
+                
+                # Get trim, falling back from details -> voice_config -> default
+                trim_end_ms = details.get('trim_end_ms', voice_config.get('trim_end_ms', 120))
 
-                if default_norm_gauss_size % 2 == 0:
-                    default_norm_gauss_size -= 1
-
-                default_padding_ms = 0
-                next_gui_index = app_instance.current_gui_selection + 1
-                if next_gui_index < app_instance.segment_listbox.size():
-                    next_details = app_instance.reviewable_segment_details.get(next_gui_index)
-                    if next_details:
-                        next_segment_type = next_details.get('type')
-                        if next_segment_type == 'speech':
-                            next_voice = next_details.get('voice')
-                            if voice == next_voice:
-                                default_padding_ms = 100
-                            else:
-                                default_padding_ms = 750
+                # Get padding from details if it exists, otherwise calculate it
+                padding_ms = details.get('padding_ms')
+                if padding_ms is None:
+                    next_gui_index = app_instance.current_gui_selection + 1
+                    if next_gui_index < app_instance.segment_listbox.size():
+                        next_details = app_instance.reviewable_segment_details.get(next_gui_index)
+                        if next_details:
+                            next_segment_type = next_details.get('type')
+                            if next_segment_type == 'speech':
+                                padding_ms = 100 if voice == next_details.get('voice') else 750
+                            else: # Next is intro/outro
+                                padding_ms = 750
                         else:
-                            default_padding_ms = 750
-                    else:
-                         print(f"Warning: Could not get details for next GUI index {next_gui_index}")
-                         default_padding_ms = 0
+                            padding_ms = 0 # No next details found
+                    else: # Last segment
+                        padding_ms = 0
+                    print(f"  Segment {app_instance.current_gui_selection}: Calculated padding: {padding_ms}ms")
                 else:
-                    default_padding_ms = 0
-                print(f"  Segment {app_instance.current_gui_selection}: Calculated default padding: {default_padding_ms}ms")
+                    print(f"  Segment {app_instance.current_gui_selection}: Loaded padding from details: {padding_ms}ms")
 
-                if voice == 'leo':
-                    default_ffmpeg_enabled = False
-                    default_deesser_enabled = False
-                    print(f"  Segment {app_instance.current_gui_selection}: Voice is 'leo', defaulting FFmpeg/De-esser OFF.")
-                else:
-                    default_ffmpeg_enabled = True
-                    default_deesser_enabled = True
-                    print(f"  Segment {app_instance.current_gui_selection}: Voice is '{voice}', defaulting FFmpeg/De-esser ON.")
+                # Get FFmpeg/De-esser settings from details, falling back to voice config/defaults
+                ffmpeg_enabled = details.get('apply_ffmpeg_enhancement', voice != 'leo')
+                deesser_enabled = details.get('apply_deesser', voice != 'leo')
+                nr_level = details.get('nr_level', voice_config.get('nr_level', 35))
+                compress_thresh = details.get('compress_thresh', voice_config.get('compress_thresh', 0.03))
+                compress_ratio = details.get('compress_ratio', voice_config.get('compress_ratio', 2))
+                norm_frame_len = details.get('norm_frame_len', voice_config.get('norm_frame_len', 20))
+                norm_gauss_size = details.get('norm_gauss_size', voice_config.get('norm_gauss_size', 15))
+                deesser_freq = details.get('deesser_freq', voice_config.get('deesser_freq', 5000))
 
-                app_instance.ffmpeg_enhancement_var.set(default_ffmpeg_enabled)
-                app_instance.deesser_var.set(default_deesser_enabled)
+                if norm_gauss_size % 2 == 0:
+                    norm_gauss_size -= 1
 
-                app_instance.gain_var.set(default_gain)
-                app_instance.trim_end_ms_var.set(default_trim_end_ms)
-                app_instance.deesser_freq_var.set(default_deesser_freq)
-                app_instance.nr_level_var.set(default_nr_level)
-                app_instance.compress_thresh_var.set(default_compress_thresh)
-                app_instance.compress_ratio_var.set(default_compress_ratio)
-                app_instance.norm_frame_len_var.set(default_norm_frame_len)
-                app_instance.norm_gauss_size_var.set(default_norm_gauss_size)
+                # Set all the UI variables from the determined values
+                app_instance.ffmpeg_enhancement_var.set(ffmpeg_enabled)
+                app_instance.deesser_var.set(deesser_enabled)
+                app_instance.gain_var.set(gain)
+                app_instance.trim_end_ms_var.set(trim_end_ms)
+                app_instance.padding_ms_var.set(padding_ms)
+                app_instance.deesser_freq_var.set(deesser_freq)
+                app_instance.nr_level_var.set(nr_level)
+                app_instance.compress_thresh_var.set(compress_thresh)
+                app_instance.compress_ratio_var.set(compress_ratio)
+                app_instance.norm_frame_len_var.set(norm_frame_len)
+                app_instance.norm_gauss_size_var.set(norm_gauss_size)
 
-                app_instance.padding_ms_var.set(default_padding_ms)
-
-                app_instance.deesser_freq_spinbox.configure(state='normal' if (default_ffmpeg_enabled and default_deesser_enabled) else 'disabled')
+                app_instance.deesser_freq_spinbox.configure(state='normal' if (ffmpeg_enabled and deesser_enabled) else 'disabled')
 
                 _toggle_ffmpeg_params_visibility(app_instance)
                 app_instance.intro_music_combo.config(state=tk.DISABLED)
@@ -251,31 +248,26 @@ def on_segment_select(app_instance, event):
                 if not app_instance.gain_frame.grid_info():
                     app_instance.gain_frame.grid(**app_instance.gain_frame_grid_config)
 
-            elif segment_type == 'intro':
-                print("DEBUG: Configuring UI for INTRO segment...")
-                intro_path = details.get('intro_music', NO_MUSIC)
-                app_instance.intro_music_var.set(os.path.basename(intro_path) if intro_path != NO_MUSIC else NO_MUSIC)
-                audio_path_to_load = intro_path
+            elif segment_type in ['intro', 'outro']:
+                print(f"DEBUG: Configuring UI for {segment_type.upper()} segment...")
+                music_path = details.get('audio_path', NO_MUSIC)
+                music_var = app_instance.intro_music_var if segment_type == 'intro' else app_instance.outro_music_var
+                music_combo = app_instance.intro_music_combo if segment_type == 'intro' else app_instance.outro_music_combo
+                
+                music_var.set(os.path.basename(music_path) if music_path != NO_MUSIC else NO_MUSIC)
+                audio_path_to_load = music_path
+                
+                # Disable all speech-related controls
                 app_instance.text_display.config(state=tk.DISABLED)
                 app_instance.language_combo.config(state=tk.DISABLED)
                 app_instance.voice_combo.config(state=tk.DISABLED)
                 if app_instance.gain_frame.grid_info(): app_instance.gain_frame.grid_forget()
                 if app_instance.player: app_instance.player.redo_btn.configure(state=tk.DISABLED)
-                app_instance.intro_music_combo.config(state='readonly' if widgets.pydub_available and app_instance.intro_music_names else tk.DISABLED)
-                app_instance.outro_music_combo.config(state=tk.DISABLED)
-
-            elif segment_type == 'outro':
-                print("DEBUG: Configuring UI for OUTRO segment...")
-                outro_path = details.get('outro_music', NO_MUSIC)
-                app_instance.outro_music_var.set(os.path.basename(outro_path) if outro_path != NO_MUSIC else NO_MUSIC)
-                audio_path_to_load = outro_path
-                app_instance.text_display.config(state=tk.DISABLED)
-                app_instance.language_combo.config(state=tk.DISABLED)
-                app_instance.voice_combo.config(state=tk.DISABLED)
-                if app_instance.gain_frame.grid_info(): app_instance.gain_frame.grid_forget()
-                if app_instance.player: app_instance.player.redo_btn.configure(state=tk.DISABLED)
+                
+                # Enable the correct music combo, disable the other
                 app_instance.intro_music_combo.config(state=tk.DISABLED)
-                app_instance.outro_music_combo.config(state='readonly' if widgets.pydub_available and app_instance.outro_music_names else tk.DISABLED)
+                app_instance.outro_music_combo.config(state=tk.DISABLED)
+                music_combo.config(state='readonly' if widgets.pydub_available and music_combo['values'] else tk.DISABLED)
 
             print(f"DEBUG: Preparing to load audio file: {audio_path_to_load}")
             if audio_path_to_load and audio_path_to_load not in [NO_MUSIC, NO_IMAGE]:

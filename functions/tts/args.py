@@ -33,6 +33,7 @@ def parse_tts_arguments():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--input', type=str, help='Single text input to synthesize.')
     group.add_argument('--script', type=str, help='Path to a script file (.txt) with lines like "Speaker: Dialogue".')
+    group.add_argument('--resume-from-json', type=str, help='Path to a podcast JSON file to resume editing.')
 
     # --- Script Specific Arguments ---
     parser.add_argument('--host-voice', type=str, default='leo',

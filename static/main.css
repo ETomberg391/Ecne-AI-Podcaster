@@ -575,3 +575,37 @@ nav a:hover {
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
     outline: none;
 }
+
+/* Resume Section Styles */
+.resume-section {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 2px solid #eee;
+}
+
+.resume-section h2 {
+    font-size: 1.2em;
+    color: #333;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 15px;
+}
+
+#resume-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#resume-container select {
+    flex-grow: 1; /* Allows the select to take up available space */
+}
+
+#load-podcast-button {
+    background-color: #28a745; /* Green color for load button */
+    flex-shrink: 0; /* Prevents the button from shrinking */
+}
+
+#load-podcast-button:hover {
+    background-color: #218838;
+}

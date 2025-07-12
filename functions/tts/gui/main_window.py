@@ -510,18 +510,22 @@ class TTSDevGUI:
                 details['host_image'] = host_path_to_use
                 details['guest_image'] = guest_path_to_use
 
-                # For speech segments, find the preceding silence file if applicable
+                # For speech segments, we need to add a silence segment before it if one is not already there.
+                # This logic is simplified as we assume silence always precedes speech unless it's the very first segment.
                 if segment_type == 'speech':
-                    original_index = details.get('original_index')
-                    if original_index is not None and original_index > 0 and original_index < len(self.all_segment_files):
-                        potential_silence_path = self.all_segment_files[original_index - 1]
-                        if ('silence' in os.path.basename(potential_silence_path).lower() and
-                            os.path.exists(potential_silence_path)):
-                            print(f"DEBUG: Adding silence before segment {i}: {os.path.basename(potential_silence_path)}")
-                            self.final_structured_details.append({
-                                'type': 'silence',
-                                'audio_path': potential_silence_path
-                            })
+                    # Check if the previous segment in the final list was silence
+                    is_first_segment = not self.final_structured_details
+                    if not is_first_segment:
+                        last_added_segment = self.final_structured_details[-1]
+                        if last_added_segment.get('type') != 'silence':
+                            # This case is unlikely with the current flow but is a safeguard.
+                            # We can't invent a silence file, so we just note it.
+                            print(f"Warning: Speech segment at GUI index {i} is not preceded by silence.")
+                    
+                    # The actual silence files are now added during the initial population
+                    # or generation. The finalization just needs to ensure the order is correct.
+                    # The current logic of iterating through the listbox already preserves the order.
+                    pass # Silence is handled by its position in the resumed_data or initial creation
 
                 # Append the potentially modified segment details (intro, speech, or outro)
                 self.final_structured_details.append(details)
@@ -543,23 +547,41 @@ class TTSDevGUI:
             print(f"TTSDevGUI: Error destroying window (maybe already destroyed): {e}")
         return final_structured_data
 
-def dev_mode_process(all_segment_files, reviewable_indices, text_segments_for_dev, api_host, api_port, speed, temp_dir, host_voice, guest_voice):
+    def populate_from_resumed_data(self, resumed_data):
+        """Populates the GUI state from a loaded JSON object."""
+        print("Populating GUI from resumed data...")
+        for segment_data in resumed_data:
+            segment_type = segment_data.get('type')
+            if segment_type in ['intro', 'outro']:
+                widgets.add_special_segment(self, segment_type, data=segment_data)
+            elif segment_type == 'speech':
+                # For speech, we don't have an 'original_index' as it's already processed.
+                # We pass the data directly to the widget creation function.
+                widgets.add_reviewable_segment(self, -1,
+                                               segment_data.get('audio_path'),
+                                               segment_data.get('text'),
+                                               segment_data.get('voice'),
+                                               padding_ms=segment_data.get('padding_ms', 0),
+                                               data=segment_data)
+            elif segment_type == 'silence':
+                # Silence segments are handled during finalization, not added to the listbox.
+                # We just need to make sure the file path is known.
+                audio_path = segment_data.get('audio_path')
+                if audio_path and os.path.exists(audio_path):
+                    self.all_segment_files.append(audio_path)
+            else:
+                print(f"  -> Skipping unknown segment type: {segment_type}")
+        
+        # After populating, select the first item to show its details
+        if self.segment_listbox.size() > 0:
+            self.segment_listbox.selection_set(0)
+            handlers.on_segment_select(self, None)
+
+def dev_mode_process(all_segment_files, reviewable_indices, text_segments_for_dev, api_host, api_port, speed, temp_dir, host_voice, guest_voice, resumed_data=None):
     """
     Handle development mode GUI review process.
+    Can be initialized either from a new script or from resumed data.
     """
-    if not all_segment_files:
-        print("Dev Mode: No segments (speech or silence) provided!")
-        return all_segment_files
-
-    if not reviewable_indices:
-        print("Dev Mode: No reviewable speech segments found, skipping GUI.")
-        return all_segment_files
-
-    if len(reviewable_indices) != len(text_segments_for_dev):
-         print(f"Dev Mode: Error - Mismatch between reviewable indices ({len(reviewable_indices)}) and text segment info ({len(text_segments_for_dev)}).")
-         messagebox.showerror("Internal Error", "Mismatch in segment data for Dev Mode.")
-         return None
-
     # Pygame check is now handled within AudioPlayer, but a general check here is good
     try:
         import pygame
@@ -576,19 +598,35 @@ def dev_mode_process(all_segment_files, reviewable_indices, text_segments_for_de
     gui.set_temp_dir(temp_dir)
     gui.set_all_segment_files(all_segment_files)
 
-    # Populate GUI with Intro, Speech, Outro
-    widgets.add_special_segment(gui, 'intro')
+    if resumed_data:
+        # If resuming, populate the GUI from the provided JSON data
+        gui.populate_from_resumed_data(resumed_data)
+    else:
+        # If starting fresh, populate from the initial script processing
+        if not all_segment_files:
+            print("Dev Mode: No segments (speech or silence) provided!")
+            return all_segment_files
+        if not reviewable_indices:
+            print("Dev Mode: No reviewable speech segments found, skipping GUI.")
+            return all_segment_files
+        if len(reviewable_indices) != len(text_segments_for_dev):
+            print(f"Dev Mode: Error - Mismatch between reviewable indices ({len(reviewable_indices)}) and text segment info ({len(text_segments_for_dev)}).")
+            messagebox.showerror("Internal Error", "Mismatch in segment data for Dev Mode.")
+            return None
 
-    speech_gui_start_index = gui.segment_listbox.size()
-    for review_list_idx, original_idx in enumerate(reviewable_indices):
-        if original_idx < len(all_segment_files) and review_list_idx < len(text_segments_for_dev):
-            file_path = all_segment_files[original_idx]
-            text, voice, padding_ms = text_segments_for_dev[review_list_idx]
-            widgets.add_reviewable_segment(gui, original_idx, file_path, text, voice, padding_ms=padding_ms)
-        else:
-             print(f"Dev Mode: Warning - Index mismatch adding speech segment. Review Idx: {review_list_idx}, Original Idx: {original_idx}")
+        # Populate GUI with Intro, Speech, Outro
+        widgets.add_special_segment(gui, 'intro')
 
-    widgets.add_special_segment(gui, 'outro')
+        speech_gui_start_index = gui.segment_listbox.size()
+        for review_list_idx, original_idx in enumerate(reviewable_indices):
+            if original_idx < len(all_segment_files) and review_list_idx < len(text_segments_for_dev):
+                file_path = all_segment_files[original_idx]
+                text, voice, padding_ms = text_segments_for_dev[review_list_idx]
+                widgets.add_reviewable_segment(gui, original_idx, file_path, text, voice, padding_ms=padding_ms)
+            else:
+                print(f"Dev Mode: Warning - Index mismatch adding speech segment. Review Idx: {review_list_idx}, Original Idx: {original_idx}")
+
+        widgets.add_special_segment(gui, 'outro')
 
     final_list = gui.run()
     return final_list
