@@ -251,9 +251,12 @@ def main():
                      if dev_mode_process_result:
                          print(f"Found {len(dev_mode_process_result)} segments with audio and visual details")
                          
-                         output_dir = os.path.join(ARCHIVE_DIR, 'podcast_audio')
-                         os.makedirs(output_dir, exist_ok=True)
-                         print(f"Created podcast audio directory: {output_dir}")
+                         script_name = os.path.splitext(os.path.basename(args.script))[0]
+                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                         podcast_archive_dir = os.path.join(ARCHIVE_DIR, f"podcast_{script_name}_{timestamp}")
+                         raw_audio_dir = os.path.join(podcast_archive_dir, 'raw')
+                         os.makedirs(raw_audio_dir, exist_ok=True)
+                         print(f"Created podcast archive directory: {podcast_archive_dir}")
 
                          print(f"\nProcessing {len(dev_mode_process_result)} segments for final JSON...")
                          for idx, segment in enumerate(dev_mode_process_result):
@@ -267,16 +270,16 @@ def main():
                                  if os.path.exists(original_audio_path):
                                      try:
                                          new_name = os.path.basename(original_audio_path)
-                                         new_path = os.path.join(output_dir, new_name)
+                                         new_path = os.path.join(raw_audio_dir, new_name)
                                          if not os.path.exists(new_path) or os.path.getmtime(original_audio_path) > os.path.getmtime(new_path):
                                              shutil.copy2(original_audio_path, new_path)
-                                             print(f"    -> Copied temp audio '{new_name}' to '{output_dir}'")
+                                             print(f"    -> Copied temp audio '{new_name}' to '{raw_audio_dir}'")
                                          else:
-                                             print(f"    -> Audio '{new_name}' already exists in '{output_dir}', skipping copy.")
+                                             print(f"    -> Audio '{new_name}' already exists in '{raw_audio_dir}', skipping copy.")
                                          segment['audio_path'] = new_path
                                          print(f"    -> Updated path to: {new_path}")
                                      except Exception as copy_err:
-                                         print(f"    !! ERROR copying temp file '{original_audio_path}' to '{output_dir}': {copy_err}")
+                                         print(f"    !! ERROR copying temp file '{original_audio_path}' to '{raw_audio_dir}': {copy_err}")
                                          print(f"    !! Keeping original temporary path in JSON for segment {idx+1}.")
                                  else:
                                      print(f"    !! WARNING: Temporary audio file '{original_audio_path}' not found! Cannot copy.")
@@ -290,14 +293,12 @@ def main():
                              else:
                                  print(f"    -> No audio path found for segment {idx+1} ({segment_type}).")
 
-                         json_config_path = os.path.join(ARCHIVE_DIR, args.output + '.json')
+                         json_config_path = os.path.join(podcast_archive_dir, f"{script_name}.json")
                          with open(json_config_path, 'w') as f:
                              json.dump(dev_mode_process_result, f, indent=2)
                          print(f"Saved structured segment details to {json_config_path}")
 
                          print("\nAttempting to generate video from the finalized configuration...")
-                         script_name = os.path.splitext(os.path.basename(args.script))[0] if args.script else "output_video"
-                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
                          video_output_filename = f"{script_name}_{timestamp}.mp4"
                          video_output_path = os.path.join(FINAL_AUDIO_OUTPUT_DIR, video_output_filename)
                          print(f"Saving video output to: {video_output_path}")
@@ -316,7 +317,7 @@ def main():
                              final_audio_bitrate=args.video_final_audio_bitrate,
                              workers=args.video_workers,
                              keep_temp_files=args.video_keep_temp,
-                             temp_output_dir=ARCHIVE_DIR # Pass the archive directory
+                             temp_output_dir=podcast_archive_dir # Pass the new archive directory
                          )
 
                          try:
