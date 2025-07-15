@@ -494,6 +494,11 @@ def add_reviewable_segment(app_instance, original_index, file_path, text, voice,
         details['bg_image'] = details.get('bg_image') or NO_IMAGE
         details['host_image'] = details.get('host_image') or NO_IMAGE
         details['guest_image'] = details.get('guest_image') or NO_IMAGE
+        
+        # If padding_ms is 0 in resumed data, set it to None to force recalculation in on_segment_select
+        if details.get('padding_ms') == 0:
+            details['padding_ms'] = None
+        
         print(f"TTSDevGUI: Adding resumed speech segment: GUI Index {gui_index}, Original Index {original_index}, File: {details.get('audio_path')}")
     else:
         # Create new default data
