@@ -1,3 +1,8 @@
+Update Notes 7/15/2025:
+- Fixed bugs in resuming feature, and added a save and close button to save progress instead of saving and generating the final podcast. As a means to pick it back up in the json file for later with the resume feature.
+- Fixed "Missing Audio" error that deadstops a segment, and enabled redo to regenerate a segment to clear and corrupt audio issues.
+- Reworked some of the Script Builder to default youtube descriptions building enabled, and placed all additional settings under a dropdown menu for a cleaner look.
+
 Update Notes 7/12/2025:
 - Added an Easy mode for script building. Just click it, describe what you want to research and select your AI LLM backend. It will then automate a topic, 3 key words, and guidance.
 - Added a resume feature to podcast building. This will allow you to return to a completed podcast in case a segment wasn't perfect, giving you the ability to edit and rebuild without starting from scratch all over again.
