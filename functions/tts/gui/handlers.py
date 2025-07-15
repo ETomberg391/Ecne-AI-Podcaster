@@ -86,7 +86,7 @@ def on_segment_select(app_instance, event):
             print(f"DEBUG: Text content to insert: {repr(text_to_insert)}")
 
             print("DEBUG: Populating BG image dropdown var...")
-            bg_base_path = details.get('bg_image', NO_IMAGE)
+            bg_base_path = details.get('bg_image') or NO_IMAGE
             app_instance.bg_image_var.set(os.path.basename(bg_base_path) if bg_base_path != NO_IMAGE else NO_IMAGE)
 
             speaker_context = 'none'
@@ -100,8 +100,8 @@ def on_segment_select(app_instance, event):
                 speaker_context = 'intro_outro'
             print(f"DEBUG: Speaker context determined: {speaker_context}")
 
-            host_base_path = details.get('host_image', NO_IMAGE)
-            guest_base_path = details.get('guest_image', NO_IMAGE)
+            host_base_path = details.get('host_image') or NO_IMAGE
+            guest_base_path = details.get('guest_image') or NO_IMAGE
 
             host_names_to_show = app_instance.host_closed_image_names
             guest_names_to_show = app_instance.guest_closed_image_names
@@ -270,22 +270,27 @@ def on_segment_select(app_instance, event):
                 music_combo.config(state='readonly' if widgets.pydub_available and music_combo['values'] else tk.DISABLED)
 
             print(f"DEBUG: Preparing to load audio file: {audio_path_to_load}")
+            # Always enable redo button for speech segments, regardless of audio file existence
+            if segment_type == 'speech' and app_instance.player:
+                app_instance.player.redo_btn.configure(state=tk.NORMAL)
+
             if audio_path_to_load and audio_path_to_load not in [NO_MUSIC, NO_IMAGE]:
                 print(f"DEBUG: Attempting to load audio file path: {audio_path_to_load}")
                 if not os.path.exists(audio_path_to_load):
                     print(f"ERROR - File does not exist: {audio_path_to_load}")
                     messagebox.showerror("Load Error", f"Audio file not found:\n{audio_path_to_load}")
+                    widgets.clear_waveform(app_instance) # Clear waveform if file not found
+                    app_instance.player.load_file(None) # Ensure player is cleared
                 else:
                     print(f"DEBUG: Calling app_instance.player.load_file({audio_path_to_load})...")
                     if app_instance.player.load_file(audio_path_to_load):
                         print("DEBUG: Audio file loaded successfully.")
-                        if segment_type == 'speech' and app_instance.player:
-                            app_instance.player.redo_btn.configure(state=tk.NORMAL)
                         print("DEBUG: Updating waveform...")
                         widgets.update_waveform(app_instance, audio_path_to_load)
                         print("DEBUG: Waveform updated.")
                     else:
                          messagebox.showerror("Load Error", f"Failed to load audio file:\n{audio_path_to_load}")
+                         widgets.clear_waveform(app_instance) # Clear waveform if load fails
             else:
                 print("DEBUG: No valid audio path to load.")
                 widgets.clear_waveform(app_instance)

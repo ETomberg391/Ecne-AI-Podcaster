@@ -8,12 +8,12 @@ body {
 }
 
 .container {
-    max-width: 900px;
+    max-width: 960px;
     margin: 0 auto;
     background: #fff;
-    padding: 20px 30px;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 25px 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 h1, h2 {
@@ -24,7 +24,7 @@ h1, h2 {
 }
 
 .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .form-group label {
@@ -39,10 +39,21 @@ h1, h2 {
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 8px;
+    padding: 10px; /* Increased padding */
     border: 1px solid #ccc;
-    border-radius: 4px;
+    border-radius: 5px; /* Slightly more rounded corners */
     box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s; /* Added transition */
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group input[type="date"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    outline: none;
 }
 
 .checkbox-group {
@@ -172,19 +183,60 @@ h1, h2 {
     font-weight: bold;
 }
 
-button {
+button, .button {
     background-color: #007bff;
     color: white;
-    padding: 10px 20px;
+    padding: 12px 25px;
     border: none;
-    border-radius: 4px;
+    border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
     margin-top: 10px;
+    transition: background-color 0.3s, transform 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
 }
 
-button:hover {
+button:hover, .button:hover {
     background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+details {
+    border: 1px solid #eee;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+}
+
+summary {
+    padding: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    outline: none;
+    color: #0056b3;
+}
+
+details[open] {
+    background-color: #fff;
+}
+
+details[open] summary {
+    border-bottom: 1px solid #eee;
+}
+
+details .form-group {
+    padding: 0 15px;
+}
+
+details .form-group:first-of-type {
+    padding-top: 15px;
+}
+
+details .form-group:last-of-type {
+    padding-bottom: 15px;
+    margin-bottom: 0;
 }
 
 /* Output console styles */
