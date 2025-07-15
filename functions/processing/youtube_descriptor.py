@@ -69,7 +69,7 @@ def generate_youtube_description(report_content, topic, config, args):
             log_to_file(f"Warning: Could not save YouTube description prompt: {e}")
 
     # Call AI
-    raw_response, cleaned_response = call_ai_api(prompt, config, tool_name="YouTubeDescriptionGeneration", timeout=3000)
+    raw_response, cleaned_response = call_ai_api(prompt, config, tool_name="YouTubeDescriptionGeneration", timeout=args.ai_timeout, retries=args.ai_retries)
 
     # Save raw response
     if run_archive_dir and raw_response:

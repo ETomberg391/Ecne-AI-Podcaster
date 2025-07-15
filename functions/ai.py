@@ -6,145 +6,98 @@ import random # Used for retry delay jitter
 
 from .utils import log_to_file, clean_thinking_tags # Import necessary functions from utils
 
-def call_ai_api(prompt, config, tool_name="General", timeout=300):
-    """Generic function to call the OpenAI-compatible API."""
+def call_ai_api(prompt, config, tool_name="General", timeout=300, retries=1, base_wait_time=60):
+    """
+    Generic function to call the OpenAI-compatible API with retry logic.
+    - Handles Timeouts and 429 Rate Limit errors with exponential backoff.
+    """
     print(f"\nSending {tool_name} request to AI...")
     log_to_file(f"Initiating API Call (Tool: {tool_name})")
 
-    # Get the selected model config from the main config object passed into the function
     model_config = config.get("selected_model_config")
     if not model_config:
-        # This should ideally not happen due to checks in main(), but handle defensively
-        final_model_key = config.get('final_model_key', 'N/A') # Get the key determined in main() for error message
-        print(f"Error: Selected model configuration ('{final_model_key}') not found in loaded config passed to call_ai_api. Cannot call API.")
+        final_model_key = config.get('final_model_key', 'N/A')
+        print(f"Error: Selected model configuration ('{final_model_key}') not found. Cannot call API.")
         log_to_file(f"API Call Error: selected_model_config missing for key '{final_model_key}'.")
         return None, None
 
-    # Now get API details from the fetched model_config
     api_key = model_config.get("api_key")
     api_endpoint = model_config.get("api_endpoint")
-
     if not api_key or not api_endpoint:
-        # Use the final_model_key stored in config for the error message
-        final_model_key = config.get('final_model_key', 'N/A') # Get the key determined in main()
-        print(f"Error: 'api_key' or 'api_endpoint' missing in the selected model configuration ('{final_model_key}') within ai_models.yml")
-        log_to_file(f"API Call Error: api_key or api_endpoint missing for model key '{final_model_key}' in its YAML definition.")
+        final_model_key = config.get('final_model_key', 'N/A')
+        print(f"Error: 'api_key' or 'api_endpoint' missing in config for '{final_model_key}'.")
+        log_to_file(f"API Call Error: api_key or api_endpoint missing for model key '{final_model_key}'.")
         return None, None
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-
-    # Build payload using parameters from the selected model config
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
-        "model": model_config.get("model"), # Required, validated in load_config
+        "model": model_config.get("model"),
         "messages": [{"role": "user", "content": prompt}],
-        # Include other parameters from YAML if they exist
     }
-    if "temperature" in model_config:
-        payload["temperature"] = float(model_config["temperature"]) # Ensure float
-    if "max_tokens" in model_config:
-        payload["max_tokens"] = int(model_config["max_tokens"]) # Ensure int
-    if "top_p" in model_config:
-         payload["top_p"] = float(model_config["top_p"]) # Ensure float
-    # Add other potential parameters here (e.g., top_k, stop sequences) if defined in YAML
+    # Dynamically add optional parameters from config
+    for param in ["temperature", "max_tokens", "top_p"]:
+        if param in model_config:
+            # Ensure correct type, e.g., float for temp, int for tokens
+            try:
+                if param == "temperature" or param == "top_p":
+                    payload[param] = float(model_config[param])
+                elif param == "max_tokens":
+                    payload[param] = int(model_config[param])
+            except (ValueError, TypeError):
+                 print(f"Warning: Could not convert '{param}' to the correct type. Using default.")
+                 log_to_file(f"Config Warning: Could not convert '{param}' value '{model_config[param]}'.")
 
-    # Ensure essential 'model' key exists
+
     if not payload.get("model"):
-         print(f"Error: 'model' key is missing in the final payload construction for config '{config.get('DEFAULT_MODEL_CONFIG')}'.")
-         log_to_file("API Call Error: 'model' key missing in payload.")
-         return None, None
+        print(f"Error: 'model' key is missing in the final payload for config '{config.get('DEFAULT_MODEL_CONFIG')}'.")
+        log_to_file("API Call Error: 'model' key missing in payload.")
+        return None, None
 
     log_to_file(f"API Call Details:\nEndpoint: {api_endpoint}\nPayload: {json.dumps(payload, indent=2)}")
+    full_api_url = api_endpoint.rstrip('/') + "/chat/completions"
 
-    try:
-        full_api_url = api_endpoint.rstrip('/') + "/chat/completions"
-        response = requests.post(full_api_url, headers=headers, json=payload, timeout=timeout)
-        response.raise_for_status() # Raises HTTPError for bad responses (4xx or 5xx)
+    for attempt in range(retries + 1):
+        try:
+            response = requests.post(full_api_url, headers=headers, json=payload, timeout=timeout)
+            response.raise_for_status()
 
-        result = response.json()
-        log_to_file(f"Raw API Response:\n{json.dumps(result, indent=2)}")
+            result = response.json()
+            log_to_file(f"Raw API Response (Attempt {attempt + 1}):\n{json.dumps(result, indent=2)}")
 
-        # Robust content extraction
-        if not result.get("choices"):
-            raise ValueError("No 'choices' field in API response.")
-        if not result["choices"][0].get("message"):
-            raise ValueError("No 'message' field in the first choice.")
+            if not result.get("choices") or not result["choices"][0].get("message") or not result["choices"][0]["message"].get("content"):
+                raise ValueError("Invalid response structure received from API.")
 
-        message_content = result["choices"][0]["message"].get("content")
-        if not message_content:
-            raise ValueError("Empty 'content' in the message.")
+            print(f"{tool_name} response received.")
+            message_content = result["choices"][0]["message"]["content"]
+            cleaned_message = clean_thinking_tags(message_content)
+            return message_content, cleaned_message
 
-        print(f"{tool_name} response received.")
-        cleaned_message = clean_thinking_tags(message_content)
-        # Return raw (for logging) and cleaned (for use)
-        return message_content, cleaned_message
+        except requests.exceptions.Timeout:
+            error_msg = f"API call timed out after {timeout} seconds (Attempt {attempt + 1}/{retries + 1})."
+            print(f"\n{tool_name} request failed (Timeout).")
+            log_to_file(error_msg)
+            if attempt >= retries:
+                return None, None  # Final attempt failed
 
-    except requests.exceptions.Timeout:
-        error_msg = f"Error calling AI API: Timeout after {timeout} seconds."
-        print(f"\n{tool_name} request failed (Timeout).")
-        log_to_file(error_msg)
-        return None, None
-    except requests.exceptions.HTTPError as e:
-        error_msg = f"Error calling AI API (HTTP {e.response.status_code}): {e}"
-        print(f"\n{tool_name} request failed ({e.response.status_code}).")
-        log_to_file(error_msg)
-        # --- Rate Limit Handling (429) ---
-        if e.response.status_code == 429:
-            wait_time = 61
-            print(f"Rate limit likely hit (429). Waiting for {wait_time} seconds before retrying once...")
-            log_to_file(f"Rate limit hit (429). Waiting {wait_time}s and retrying.")
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"API call failed with HTTP {e.response.status_code} (Attempt {attempt + 1}/{retries + 1}): {e}"
+            print(f"\n{tool_name} request failed ({e.response.status_code}).")
+            log_to_file(error_msg)
+            if e.response.status_code != 429 or attempt >= retries:
+                return None, None  # Fail on non-429 errors or if retries are exhausted
+
+        except (requests.exceptions.RequestException, ValueError, KeyError, IndexError) as e:
+            error_msg = f"An error occurred during API call or response parsing (Attempt {attempt + 1}/{retries + 1}): {e}"
+            print(f"\n{tool_name} request failed.")
+            log_to_file(f"{error_msg}\nRaw Response (if available):\n{locals().get('response', 'N/A')}")
+            if attempt >= retries:
+                return None, None  # Final attempt failed
+
+        # If we are going to retry, calculate wait time and log it
+        if attempt < retries:
+            wait_time = base_wait_time * (2 ** attempt) + random.uniform(0, 1) # Exponential backoff with jitter
+            print(f"Waiting for {wait_time:.2f} seconds before retrying...")
+            log_to_file(f"Retrying after {wait_time:.2f} seconds.")
             time.sleep(wait_time)
-            print(f"Retrying {tool_name} request...")
-            try:
-                # Retry the request
-                response = requests.post(full_api_url, headers=headers, json=payload, timeout=timeout)
-                response.raise_for_status() # Check status of the retry
 
-                result = response.json()
-                log_to_file(f"Raw API Response (Retry Attempt):\n{json.dumps(result, indent=2)}")
-
-                # Re-check response structure after retry
-                if not result.get("choices"): raise ValueError("No 'choices' field in API response (Retry).")
-                if not result["choices"][0].get("message"): raise ValueError("No 'message' field in the first choice (Retry).")
-                message_content = result["choices"][0]["message"].get("content")
-                if not message_content: raise ValueError("Empty 'content' in the message (Retry).")
-
-                print(f"{tool_name} response received (after retry).")
-                cleaned_message = clean_thinking_tags(message_content)
-                return message_content, cleaned_message # Success after retry
-
-            except requests.exceptions.RequestException as retry_e:
-                error_msg_retry = f"Error calling AI API on retry: {retry_e}"
-                print(f"\n{tool_name} request failed on retry.")
-                log_to_file(error_msg_retry)
-                return None, None # Failed on retry
-            except (ValueError, KeyError, IndexError) as retry_parse_e:
-                error_msg_retry = f"Error parsing AI API response on retry: {retry_parse_e}"
-                print(f"\n{tool_name} response parsing failed on retry.")
-                log_to_file(f"{error_msg_retry}\nRaw Response (Retry, if available):\n{result if 'result' in locals() else 'N/A'}")
-                return None, None # Failed parsing on retry
-            except Exception as retry_fatal_e:
-                 error_msg_retry = f"An unexpected error occurred during AI API call retry: {retry_fatal_e}"
-                 print(f"\n{tool_name} request failed unexpectedly on retry.")
-                 log_to_file(error_msg_retry)
-                 return None, None # Failed unexpectedly on retry
-        else:
-            # If it was a different HTTP error (not 429), fail immediately
-            return None, None
-    except requests.exceptions.RequestException as e: # Catch other request errors (connection, etc.)
-        error_msg = f"Error calling AI API: {e}"
-        print(f"\n{tool_name} request failed.")
-        log_to_file(error_msg)
-        return None, None
-    except (ValueError, KeyError, IndexError) as e:
-        error_msg = f"Error parsing AI API response: {e}"
-        print(f"\n{tool_name} response parsing failed.")
-        log_to_file(f"{error_msg}\nRaw Response (if available):\n{result if 'result' in locals() else 'N/A'}")
-        return None, None
-    except Exception as e:
-        error_msg = f"An unexpected error occurred during AI API call: {e}"
-        print(f"\n{tool_name} request failed (Unexpected).")
-        log_to_file(error_msg)
-        return None, None
+    return None, None # Should be unreachable, but as a fallback

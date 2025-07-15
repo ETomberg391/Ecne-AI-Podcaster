@@ -68,7 +68,7 @@ def summarize_content(scraped_texts, reference_docs_content, topic, config, args
             f"<summaryScore>8</summaryScore>"
         )
 
-        raw_response, cleaned_response = call_ai_api(prompt, config, tool_name=f"Summary_{i}_{item_type}", timeout=3000) # Shorter timeout, added type
+        raw_response, cleaned_response = call_ai_api(prompt, config, tool_name=f"Summary_{i}_{item_type}", timeout=args.ai_timeout, retries=args.ai_retries)
 
         summary = "Error: Summarization Failed"
         score = -1 # Default score
@@ -102,8 +102,8 @@ def summarize_content(scraped_texts, reference_docs_content, topic, config, args
                  log_to_file(f"Warning: Could not find/parse <summaryScore> tag for summary {i} ({item_source_id}). Using -1.")
 
         else: # API call itself failed
-            log_to_file(f"Error: API call failed for Summary_{i} ({item_source_id})")
-            summary = f"Error: Could not summarize text piece {i} ({item_source_id}) (API call failed)"
+            log_to_file(f"Error: API call failed for Summary_{i} ({item_source_id}). Raw response was empty.")
+            summary = f"Error: Could not summarize text piece {i} ({item_source_id}) (API call failed or timed out)"
 
         # Add summary and score along with type and source identifier
         summary_details = {"type": item_type, "source_id": item_source_id, 'summary': summary, 'score': score}

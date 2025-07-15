@@ -31,5 +31,19 @@ echo "Virtual environment activated successfully."
 echo "Starting Control Panel App..."
 echo "================================================================"
 
-# Run the control panel app
+# Function to open URL in default browser
+open_url() {
+    local url="http://127.0.0.1:5000"
+    echo "Attempting to open $url in your default browser..."
+    case "$(uname -s)" in
+        Linux*)  xdg-open "$url" >/dev/null 2>&1 & ;;
+        Darwin*) open "$url" & ;;
+        *)       echo "Please open your browser and navigate to $url" ;;
+    esac
+}
+
+# Open the browser in the background after a short delay
+(sleep 2 && open_url) &
+
+# Run the control panel app in the foreground
 python control_panel_app.py

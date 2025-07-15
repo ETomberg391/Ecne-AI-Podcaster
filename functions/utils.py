@@ -3,13 +3,30 @@ import datetime
 import re
 import random # Required for USER_AGENTS
 
-# Global variable for archive directory (set in main)
+# Global variables to hold the current run's archive directory and log file handler
 run_archive_dir = None
+log_file_path = None
+log_file_handler = None
 
 def set_run_archive_dir(path):
-    """Sets the global run_archive_dir variable."""
-    global run_archive_dir
+    """Sets the global run_archive_dir and initializes the log file path."""
+    global run_archive_dir, log_file_path, log_file_handler
+    # Close any existing log file handler before changing paths
+    if log_file_handler:
+        log_file_handler.close()
+        log_file_handler = None
+
     run_archive_dir = path
+    if run_archive_dir:
+        log_file_path = os.path.join(run_archive_dir, f"ai_podcast_run_{datetime.datetime.now().strftime('%Y%m%d')}.log")
+        try:
+            # Open the file in append mode and keep the handler
+            log_file_handler = open(log_file_path, 'a', encoding='utf-8')
+        except IOError as e:
+            print(f"Fatal: Could not open log file for writing at {log_file_path}: {e}")
+            log_file_handler = None
+    else:
+        log_file_path = None
 
 # User agents for requests/scraping
 USER_AGENTS = [
@@ -18,17 +35,29 @@ USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
 ]
 
-def log_to_file(content):
-    """Helper to write detailed logs to the run-specific archive directory."""
-    global run_archive_dir
-    if run_archive_dir:
-        log_file = os.path.join(run_archive_dir, f"ai_podcast_run_{datetime.datetime.now().strftime('%Y%m%d')}.log")
+def log_to_file(message):
+    """Appends a message to the log file using the global file handler."""
+    if not log_file_handler:
+        print(f"Warning: Log file handler not available. Could not log: {message}")
+        return
+
+    try:
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_file_handler.write(f"[{timestamp}] {message}\n")
+        log_file_handler.flush() # Ensure it's written to disk immediately
+    except Exception as e:
+        print(f"Warning: Could not write to log file {log_file_path}: {e}")
+
+def close_log_file():
+    """Closes the global log file handler."""
+    global log_file_handler
+    if log_file_handler:
         try:
-            with open(log_file, 'a', encoding='utf-8') as f:
-                f.write(f"\n[{datetime.datetime.now().isoformat()}] {content}\n")
-        except IOError as e:
-            print(f"Warning: Could not write to log file {log_file}: {e}")
-            # Silently fail if we can't write logs after warning
+            log_file_handler.close()
+            log_file_handler = None
+            print("Log file closed.")
+        except Exception as e:
+            print(f"Warning: Error closing log file: {e}")
 
 def clean_thinking_tags(text):
     """Recursively remove all content within <think>...</think> tags."""

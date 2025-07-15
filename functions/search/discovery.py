@@ -23,7 +23,7 @@ def discover_sources(keywords_list, config, args): # Added args parameter
         f"Example:\n<toolWebsites>\ntechcrunch.com\nwired.com\nexampleblog.net/relevant-section\nr/artificial\nr/machinelearning\n</toolWebsites>"
     )
 
-    raw_response, cleaned_response = call_ai_api(prompt, config, tool_name="SourceDiscovery")
+    raw_response, cleaned_response = call_ai_api(prompt, config, tool_name="SourceDiscovery", timeout=args.ai_timeout, retries=args.ai_retries)
 
     if not cleaned_response:
         log_to_file("Error: No response received from AI API for source discovery.")
