@@ -1,6 +1,7 @@
 Update Notes 7/16/2025:
 - Fixed a series of bugs associated with the podcast builder GUI where if you redo a segment for some reason the padding gets set to 0 in the segment forcing and further redos to be 0 padding making the final product no spacing between speakers... So not it is set to 750ms between speakers, and 100ms between same speaker segments IF padding = 0. Just some workaround, along with better handling padding for redos just in case.
 - Additionally attempting to fix some gliched end-audio. I have a speculation I might need to increase the trimming by 10ms maybe. All the refinements cause a glitched end audio that the trimming handles. So I've noticed a split-second glitch on some ends of segments only revealed when finalized the full video. Seeing about trimming, and additional viewing tools per segment to make sure no glitch is included.
+
 Update Notes 7/15/2025:
 - Fixed bugs in resuming feature, and added a save and close button to save progress instead of saving and generating the final podcast. As a means to pick it back up in the json file for later with the resume feature.
 - Fixed "Missing Audio" error that deadstops a segment, and enabled redo to regenerate a segment to clear and corrupt audio issues.
