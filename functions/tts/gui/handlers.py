@@ -45,7 +45,6 @@ def on_segment_select(app_instance, event):
         app_instance.gain_var.set(1.0)
         app_instance.ffmpeg_enhancement_var.set(True)
         app_instance.trim_end_ms_var.set(120)
-        app_instance.padding_ms_var.set(0)
         app_instance.nr_level_var.set(35)
         app_instance.compress_thresh_var.set(0.03)
         app_instance.compress_ratio_var.set(2)
@@ -86,7 +85,7 @@ def on_segment_select(app_instance, event):
             print(f"DEBUG: Text content to insert: {repr(text_to_insert)}")
 
             print("DEBUG: Populating BG image dropdown var...")
-            bg_base_path = details.get('bg_image', NO_IMAGE)
+            bg_base_path = details.get('bg_image') or NO_IMAGE
             app_instance.bg_image_var.set(os.path.basename(bg_base_path) if bg_base_path != NO_IMAGE else NO_IMAGE)
 
             speaker_context = 'none'
@@ -100,8 +99,8 @@ def on_segment_select(app_instance, event):
                 speaker_context = 'intro_outro'
             print(f"DEBUG: Speaker context determined: {speaker_context}")
 
-            host_base_path = details.get('host_image', NO_IMAGE)
-            guest_base_path = details.get('guest_image', NO_IMAGE)
+            host_base_path = details.get('host_image') or NO_IMAGE
+            guest_base_path = details.get('guest_image') or NO_IMAGE
 
             host_names_to_show = app_instance.host_closed_image_names
             guest_names_to_show = app_instance.guest_closed_image_names
@@ -191,25 +190,31 @@ def on_segment_select(app_instance, event):
                 # Get trim, falling back from details -> voice_config -> default
                 trim_end_ms = details.get('trim_end_ms', voice_config.get('trim_end_ms', 120))
 
-                # Get padding from details if it exists, otherwise calculate it
+                # Get padding from details. If it's None or 0, recalculate it based on defaults.
                 padding_ms = details.get('padding_ms')
-                if padding_ms is None:
+                if padding_ms is None or padding_ms == 0: # Force recalculation if None or explicitly 0
                     next_gui_index = app_instance.current_gui_selection + 1
                     if next_gui_index < app_instance.segment_listbox.size():
                         next_details = app_instance.reviewable_segment_details.get(next_gui_index)
                         if next_details:
                             next_segment_type = next_details.get('type')
                             if next_segment_type == 'speech':
+                                # Determine padding based on speaker change or same speaker
                                 padding_ms = 100 if voice == next_details.get('voice') else 750
                             else: # Next is intro/outro
                                 padding_ms = 750
                         else:
-                            padding_ms = 0 # No next details found
-                    else: # Last segment
+                            padding_ms = 0 # No next details found, so no padding
+                    else: # Last segment, no padding needed
                         padding_ms = 0
                     print(f"  Segment {app_instance.current_gui_selection}: Calculated padding: {padding_ms}ms")
+                    # Update the details dictionary with the newly calculated padding
+                    details['padding_ms'] = padding_ms
                 else:
                     print(f"  Segment {app_instance.current_gui_selection}: Loaded padding from details: {padding_ms}ms")
+
+                # Set padding_ms_var here after calculation/loading
+                app_instance.padding_ms_var.set(padding_ms)
 
                 # Get FFmpeg/De-esser settings from details, falling back to voice config/defaults
                 ffmpeg_enabled = details.get('apply_ffmpeg_enhancement', voice != 'leo')
@@ -229,7 +234,6 @@ def on_segment_select(app_instance, event):
                 app_instance.deesser_var.set(deesser_enabled)
                 app_instance.gain_var.set(gain)
                 app_instance.trim_end_ms_var.set(trim_end_ms)
-                app_instance.padding_ms_var.set(padding_ms)
                 app_instance.deesser_freq_var.set(deesser_freq)
                 app_instance.nr_level_var.set(nr_level)
                 app_instance.compress_thresh_var.set(compress_thresh)
@@ -247,6 +251,9 @@ def on_segment_select(app_instance, event):
                 app_instance.voice_combo.config(state='readonly')
                 if not app_instance.gain_frame.grid_info():
                     app_instance.gain_frame.grid(**app_instance.gain_frame_grid_config)
+                
+                # Ensure padding spinbox is enabled for speech segments
+                app_instance.padding_spinbox.config(state=tk.NORMAL)
 
             elif segment_type in ['intro', 'outro']:
                 print(f"DEBUG: Configuring UI for {segment_type.upper()} segment...")
@@ -257,10 +264,11 @@ def on_segment_select(app_instance, event):
                 music_var.set(os.path.basename(music_path) if music_path != NO_MUSIC else NO_MUSIC)
                 audio_path_to_load = music_path
                 
-                # Disable all speech-related controls
+                # Disable all speech-related controls, including padding
                 app_instance.text_display.config(state=tk.DISABLED)
                 app_instance.language_combo.config(state=tk.DISABLED)
                 app_instance.voice_combo.config(state=tk.DISABLED)
+                app_instance.padding_spinbox.config(state=tk.DISABLED) # Disable padding for intro/outro
                 if app_instance.gain_frame.grid_info(): app_instance.gain_frame.grid_forget()
                 if app_instance.player: app_instance.player.redo_btn.configure(state=tk.DISABLED)
                 
@@ -270,22 +278,27 @@ def on_segment_select(app_instance, event):
                 music_combo.config(state='readonly' if widgets.pydub_available and music_combo['values'] else tk.DISABLED)
 
             print(f"DEBUG: Preparing to load audio file: {audio_path_to_load}")
+            # Always enable redo button for speech segments, regardless of audio file existence
+            if segment_type == 'speech' and app_instance.player:
+                app_instance.player.redo_btn.configure(state=tk.NORMAL)
+
             if audio_path_to_load and audio_path_to_load not in [NO_MUSIC, NO_IMAGE]:
                 print(f"DEBUG: Attempting to load audio file path: {audio_path_to_load}")
                 if not os.path.exists(audio_path_to_load):
                     print(f"ERROR - File does not exist: {audio_path_to_load}")
                     messagebox.showerror("Load Error", f"Audio file not found:\n{audio_path_to_load}")
+                    widgets.clear_waveform(app_instance) # Clear waveform if file not found
+                    app_instance.player.load_file(None) # Ensure player is cleared
                 else:
                     print(f"DEBUG: Calling app_instance.player.load_file({audio_path_to_load})...")
                     if app_instance.player.load_file(audio_path_to_load):
                         print("DEBUG: Audio file loaded successfully.")
-                        if segment_type == 'speech' and app_instance.player:
-                            app_instance.player.redo_btn.configure(state=tk.NORMAL)
                         print("DEBUG: Updating waveform...")
                         widgets.update_waveform(app_instance, audio_path_to_load)
                         print("DEBUG: Waveform updated.")
                     else:
                          messagebox.showerror("Load Error", f"Failed to load audio file:\n{audio_path_to_load}")
+                         widgets.clear_waveform(app_instance) # Clear waveform if load fails
             else:
                 print("DEBUG: No valid audio path to load.")
                 widgets.clear_waveform(app_instance)

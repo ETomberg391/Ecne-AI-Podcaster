@@ -1,13 +1,20 @@
-Update Notes 7/12/2025:
-- Added an Easy mode for script building. Just click it, describe what you want to research and select your AI LLM backend. It will then automate a topic, 3 key words, and guidance.
-- Added a resume feature to podcast building. This will allow you to return to a completed podcast in case a segment wasn't perfect, giving you the ability to edit and rebuild without starting from scratch all over again.
-- Also reworked the output folders to better track scripts, archived podcasts, and finalized podcast videos.
+Update Summary for 7/18/2025:
 
-Still working on:
-- Working on restructuring the installation scripts to be easier, but also include no built-in sudo, and a installation_readme writeup on what is being installed for transparency.
-- Also working on documentation folder to describe how to customize the podcast (Characters, images, background, music, voices, etc). All of it relatively easy to customize.
-- No plans currently for dia-tts, but keeping my eyes open for any new developing tts services to incorporate that might work better (Preferrably in the same docker format and vram requirements of no more than 6gb vram). Chatterbox might be a good alternative.
-
+*   **Podcast Builder Enhancements:**
+    *   Fixed padding issues in GUI, ensuring consistent spacing between speakers (750ms) and same-speaker segments (100ms).
+    *   Added "Save and Close" for progress saving and a resume feature for editing completed podcasts.
+    *   Resolved "Missing Audio" errors, enabling segment regeneration for corrupt audio.
+*   **Audio Quality & Trimming:**
+    *   Addressed some of the split-second audio glitches at segment ends, exploring increased trimming (10-150ms) and new viewing tools.
+*   **Script Builder Improvements:**
+    *   Defaulted YouTube description building and streamlined settings into a dropdown menu.
+    *   Introduced "Easy mode" for automated script topic, keywords, and guidance.
+*   **Project Organization:**
+    *   Reworked output folders for better tracking of scripts, archived, and finalized podcast videos.
+*   **Future Work:**
+    *   Simplifying installation scripts (no sudo, transparent `installation_readme`).
+    *   Creating documentation for podcast customization (characters, images, music, voices).
+    *   Researching new TTS services with Docker FastAPI (e.g., Chatterbox) with low VRAM requirements (max 6GB).
 
 # Ecne AI Podcaster
 

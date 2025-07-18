@@ -443,7 +443,10 @@ class TTSDevGUI:
         right_left_frame.grid_rowconfigure(100, weight=0)
         bottom_button_frame.grid_columnconfigure(0, weight=1)
 
-        self.finalize_btn = ttk.Button(bottom_button_frame, text="Finalize && Close", command=self.finalize)
+        self.save_btn = ttk.Button(bottom_button_frame, text="Save & Close", command=self.save_and_close)
+        self.save_btn.grid(row=0, column=0, sticky='e', padx=5)
+
+        self.finalize_btn = ttk.Button(bottom_button_frame, text="Generate Podcast", command=self.finalize)
         self.finalize_btn.grid(row=0, column=1, sticky='e', padx=5)
 
         # Final Setup
@@ -459,32 +462,23 @@ class TTSDevGUI:
         except Exception:
             self.gain_value_label.config(text="-.--")
 
-    def finalize(self):
-        """Signal that we're done reviewing. Returns structured segment details."""
-        print("TTSDevGUI: Finalize clicked.")
-        if self.player:
-            self.player.cleanup()
-
-        # Prepare the final structured list based on the order in the listbox
+    def _prepare_final_data(self):
+        """Gathers and structures the final segment details from the UI state."""
         self.final_structured_details = []
         for i in range(self.segment_listbox.size()):
             original_details = self.reviewable_segment_details.get(i)
             if original_details:
-                # Create a copy to modify for the final output JSON
                 details = original_details.copy()
-
-                # Ensure type exists for all segments
                 segment_type = details.get('type', 'speech')
                 details['type'] = segment_type
 
-                # Determine Context-Specific Image Paths for Final JSON
                 voice = details.get('voice')
-                host_base_path = details.get('host_image')   # Path to 'closed' image or NO_IMAGE
-                guest_base_path = details.get('guest_image') # Path to 'closed' image or NO_IMAGE
+                host_base_path = details.get('host_image')
+                guest_base_path = details.get('guest_image')
 
                 host_path_to_use = host_base_path
                 guest_path_to_use = guest_base_path
-                speaker_context = 'none' # Default
+                speaker_context = 'none'
 
                 if segment_type == 'speech':
                     if voice == self.host_voice:
@@ -496,47 +490,41 @@ class TTSDevGUI:
 
                 print(f"  Finalizing Segment {i+1} ({segment_type}, Voice: {voice}, Context: {speaker_context})")
 
-                # Derive 'open' path if applicable, based on context
                 if speaker_context == 'host_speaking':
                     host_path_to_use = widgets.find_corresponding_open_image(host_base_path)
-                    print(f"    -> Using HOST: {os.path.basename(host_path_to_use)}, GUEST: {os.path.basename(guest_path_to_use)}")
                 elif speaker_context == 'guest_speaking':
                     guest_path_to_use = widgets.find_corresponding_open_image(guest_base_path)
-                    print(f"    -> Using HOST: {os.path.basename(host_path_to_use)}, GUEST: {os.path.basename(guest_path_to_use)}")
-                elif speaker_context in ['intro_outro', 'none']:
-                    print(f"    -> Context '{speaker_context}'. Using HOST CLOSED ({os.path.basename(host_path_to_use)}) and GUEST CLOSED ({os.path.basename(guest_path_to_use)}) images.")
 
-                # Update the copied details with the final paths to be saved
                 details['host_image'] = host_path_to_use
                 details['guest_image'] = guest_path_to_use
-
-                # For speech segments, we need to add a silence segment before it if one is not already there.
-                # This logic is simplified as we assume silence always precedes speech unless it's the very first segment.
-                if segment_type == 'speech':
-                    # Check if the previous segment in the final list was silence
-                    is_first_segment = not self.final_structured_details
-                    if not is_first_segment:
-                        last_added_segment = self.final_structured_details[-1]
-                        if last_added_segment.get('type') != 'silence':
-                            # This case is unlikely with the current flow but is a safeguard.
-                            # We can't invent a silence file, so we just note it.
-                            print(f"Warning: Speech segment at GUI index {i} is not preceded by silence.")
-                    
-                    # The actual silence files are now added during the initial population
-                    # or generation. The finalization just needs to ensure the order is correct.
-                    # The current logic of iterating through the listbox already preserves the order.
-                    pass # Silence is handled by its position in the resumed_data or initial creation
-
-                # Append the potentially modified segment details (intro, speech, or outro)
                 self.final_structured_details.append(details)
 
+    def save_and_close(self):
+        """Saves progress and closes the window without finalizing."""
+        print("TTSDevGUI: Save & Close clicked.")
+        self.save_only = True
+        self._prepare_final_data()
+        if self.player:
+            self.player.cleanup()
+        self.root.quit()
+        plt.close(self.fig)
+
+    def finalize(self):
+        """Finalizes the podcast and closes the window."""
+        print("TTSDevGUI: Finalize clicked.")
+        self.save_only = False
+        self._prepare_final_data()
+        if self.player:
+            self.player.cleanup()
         self.root.quit()
         plt.close(self.fig)
 
     def run(self):
+        """Runs the GUI main loop and returns the final data and save flag."""
         self.root.mainloop()
         print("TTSDevGUI: Mainloop finished.")
         final_structured_data = getattr(self, 'final_structured_details', None)
+        save_only_flag = getattr(self, 'save_only', False)
         try:
             if self.player:
                 self.player.cleanup()
@@ -545,33 +533,41 @@ class TTSDevGUI:
             print("TTSDevGUI: Window destroyed.")
         except tk.TclError as e:
             print(f"TTSDevGUI: Error destroying window (maybe already destroyed): {e}")
-        return final_structured_data
+        return final_structured_data, save_only_flag
 
     def populate_from_resumed_data(self, resumed_data):
         """Populates the GUI state from a loaded JSON object."""
         print("Populating GUI from resumed data...")
+        # When resuming, all_segment_files is initially empty. We must rebuild it.
+        self.all_segment_files = []
+
         for segment_data in resumed_data:
             segment_type = segment_data.get('type')
+            audio_path = segment_data.get('audio_path')
+
+            # Every segment, including silence, has an audio path that needs to be in all_segment_files
+            # This path is what will be replaced on 'redo'
+            self.all_segment_files.append(audio_path)
+            current_original_index = len(self.all_segment_files) - 1
+
             if segment_type in ['intro', 'outro']:
-                widgets.add_special_segment(self, segment_type, data=segment_data)
+                # Pass the correct original_index to the widget creation function
+                widgets.add_special_segment(self, segment_type, data=segment_data, original_index=current_original_index)
             elif segment_type == 'speech':
-                # For speech, we don't have an 'original_index' as it's already processed.
-                # We pass the data directly to the widget creation function.
-                widgets.add_reviewable_segment(self, -1,
+                # Pass the correct original_index to the widget creation function
+                widgets.add_reviewable_segment(self, current_original_index,
                                                segment_data.get('audio_path'),
                                                segment_data.get('text'),
                                                segment_data.get('voice'),
                                                padding_ms=segment_data.get('padding_ms', 0),
                                                data=segment_data)
             elif segment_type == 'silence':
-                # Silence segments are handled during finalization, not added to the listbox.
-                # We just need to make sure the file path is known.
-                audio_path = segment_data.get('audio_path')
-                if audio_path and os.path.exists(audio_path):
-                    self.all_segment_files.append(audio_path)
+                # Silence segments are not in the listbox, but are in all_segment_files.
+                # The path was already added above. Nothing more to do here.
+                pass
             else:
                 print(f"  -> Skipping unknown segment type: {segment_type}")
-        
+
         # After populating, select the first item to show its details
         if self.segment_listbox.size() > 0:
             self.segment_listbox.selection_set(0)
@@ -582,16 +578,15 @@ def dev_mode_process(all_segment_files, reviewable_indices, text_segments_for_de
     Handle development mode GUI review process.
     Can be initialized either from a new script or from resumed data.
     """
-    # Pygame check is now handled within AudioPlayer, but a general check here is good
     try:
         import pygame
         pygame.mixer.init()
         if not pygame.mixer.get_init():
             messagebox.showerror("Error", "Pygame mixer failed to initialize. Cannot run Dev Mode GUI.")
-            return None
+            return None, False
     except ImportError:
         messagebox.showerror("Error", "Pygame library not found. Cannot run Dev Mode GUI.")
-        return None
+        return None, False
 
     print("Starting Dev Mode GUI...")
     gui = TTSDevGUI(api_host, api_port, speed, host_voice, guest_voice)
@@ -599,34 +594,29 @@ def dev_mode_process(all_segment_files, reviewable_indices, text_segments_for_de
     gui.set_all_segment_files(all_segment_files)
 
     if resumed_data:
-        # If resuming, populate the GUI from the provided JSON data
         gui.populate_from_resumed_data(resumed_data)
     else:
-        # If starting fresh, populate from the initial script processing
         if not all_segment_files:
             print("Dev Mode: No segments (speech or silence) provided!")
-            return all_segment_files
+            return all_segment_files, False
         if not reviewable_indices:
             print("Dev Mode: No reviewable speech segments found, skipping GUI.")
-            return all_segment_files
+            return all_segment_files, False
         if len(reviewable_indices) != len(text_segments_for_dev):
             print(f"Dev Mode: Error - Mismatch between reviewable indices ({len(reviewable_indices)}) and text segment info ({len(text_segments_for_dev)}).")
             messagebox.showerror("Internal Error", "Mismatch in segment data for Dev Mode.")
-            return None
+            return None, False
 
-        # Populate GUI with Intro, Speech, Outro
         widgets.add_special_segment(gui, 'intro')
-
         speech_gui_start_index = gui.segment_listbox.size()
         for review_list_idx, original_idx in enumerate(reviewable_indices):
             if original_idx < len(all_segment_files) and review_list_idx < len(text_segments_for_dev):
                 file_path = all_segment_files[original_idx]
-                text, voice, padding_ms = text_segments_for_dev[review_list_idx]
+                text, voice, padding_ms = text_segments_for__dev[review_list_idx]
                 widgets.add_reviewable_segment(gui, original_idx, file_path, text, voice, padding_ms=padding_ms)
             else:
                 print(f"Dev Mode: Warning - Index mismatch adding speech segment. Review Idx: {review_list_idx}, Original Idx: {original_idx}")
-
         widgets.add_special_segment(gui, 'outro')
 
-    final_list = gui.run()
-    return final_list
+    final_list, save_only = gui.run()
+    return final_list, save_only

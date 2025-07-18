@@ -436,7 +436,7 @@ def update_waveform(app_instance, file_path):
         messagebox.showerror("Waveform Error", f"Could not display waveform.\n\nError: {e}")
         clear_waveform(app_instance) # Clear plot on error
 
-def add_special_segment(app_instance, segment_type, data=None):
+def add_special_segment(app_instance, segment_type, data=None, original_index=-1):
     """Adds an Intro or Outro segment to the GUI, optionally populating from data."""
     if segment_type not in ['intro', 'outro']:
         return
@@ -447,9 +447,15 @@ def add_special_segment(app_instance, segment_type, data=None):
     if data:
         # Populate from existing data
         details = data.copy() # Work with a copy
-        print(f"TTSDevGUI: Adding resumed special segment: {display_name} (GUI Index {gui_index})")
+        # When resuming, the correct original_index is passed in.
+        details['original_index'] = original_index
+        # Ensure image paths are not None, default to NO_IMAGE
+        details['bg_image'] = details.get('bg_image') or NO_IMAGE
+        details['host_image'] = details.get('host_image') or NO_IMAGE
+        details['guest_image'] = details.get('guest_image') or NO_IMAGE
+        print(f"TTSDevGUI: Adding resumed special segment: {display_name} (GUI Index {gui_index}, Original Index {original_index})")
     else:
-        # Create new default data
+        # Create new default data for a fresh run
         default_music_list = app_instance.intro_music_files if segment_type == 'intro' else app_instance.outro_music_files
         default_music = default_music_list[0] if default_music_list else NO_MUSIC
         default_bg = app_instance.background_files[0] if app_instance.background_files else NO_IMAGE
@@ -460,7 +466,7 @@ def add_special_segment(app_instance, segment_type, data=None):
             'type': segment_type,
             'text': f"[{display_name} Music]",
             'voice': None,
-            'original_index': -1,
+            'original_index': -1, # For fresh intros/outros, this doesn't map to all_segment_files yet
             'gain': 1.0,
             'bg_image': default_bg,
             'host_image': default_host,
@@ -472,6 +478,8 @@ def add_special_segment(app_instance, segment_type, data=None):
         print(f"TTSDevGUI: Added new special segment: {display_name} (GUI Index {gui_index})")
 
     app_instance.reviewable_segment_details[gui_index] = details
+    # Map the GUI index to the true original_index in all_segment_files
+    app_instance.gui_index_to_original_index[gui_index] = details['original_index']
     app_instance.segment_listbox.insert(tk.END, f"--- {display_name} ---")
 
 def add_reviewable_segment(app_instance, original_index, file_path, text, voice, padding_ms=0, data=None):
@@ -479,9 +487,19 @@ def add_reviewable_segment(app_instance, original_index, file_path, text, voice,
     gui_index = app_instance.segment_listbox.size()
 
     if data:
-        # Populate from existing data
+        # Populate from existing data that's already processed
         details = data.copy() # Work with a copy
-        print(f"TTSDevGUI: Adding resumed speech segment: GUI Index {gui_index}, File: {details.get('audio_path')}")
+        details['original_index'] = original_index # Ensure the correct index is set
+        # Ensure image paths are not None, default to NO_IMAGE
+        details['bg_image'] = details.get('bg_image') or NO_IMAGE
+        details['host_image'] = details.get('host_image') or NO_IMAGE
+        details['guest_image'] = details.get('guest_image') or NO_IMAGE
+        
+        # If padding_ms is 0 in resumed data, set it to None to force recalculation in on_segment_select
+        if details.get('padding_ms') == 0:
+            details['padding_ms'] = None
+        
+        print(f"TTSDevGUI: Adding resumed speech segment: GUI Index {gui_index}, Original Index {original_index}, File: {details.get('audio_path')}")
     else:
         # Create new default data
         voice_config = load_voice_config(voice)

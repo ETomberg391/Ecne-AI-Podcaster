@@ -281,7 +281,7 @@ def generate_and_refine_script(summaries_with_scores, reference_docs_content, to
         except IOError as e: log_to_file(f"Warning: Could not save initial script prompt: {e}")
 
     print("Calling AI for initial script generation...")
-    raw_initial_response, cleaned_initial_response = call_ai_api(initial_prompt, config, tool_name="ScriptGeneration_Initial", timeout=3000) # Longer timeout
+    raw_initial_response, cleaned_initial_response = call_ai_api(initial_prompt, config, tool_name="ScriptGeneration_Initial", timeout=args.ai_timeout, retries=args.ai_retries)
 
     # Save initial raw response
     if run_archive_dir and raw_initial_response:
@@ -352,7 +352,7 @@ def generate_and_refine_script(summaries_with_scores, reference_docs_content, to
         except IOError as e: log_to_file(f"Warning: Could not save refinement script prompt: {e}")
 
     print("Calling AI for script refinement...")
-    raw_refined_response, cleaned_refined_response = call_ai_api(refinement_prompt, config, tool_name="ScriptRefinement", timeout=300)
+    raw_refined_response, cleaned_refined_response = call_ai_api(refinement_prompt, config, tool_name="ScriptRefinement", timeout=args.ai_timeout, retries=args.ai_retries)
 
     # Save refinement raw response
     if run_archive_dir and raw_refined_response:

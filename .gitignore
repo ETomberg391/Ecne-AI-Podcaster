@@ -8,3 +8,5 @@ functions/__pycache__/*
 /uploads/*
 */*/__pycache__/*
 */*/*/__pycache__/*
+temp_audio/*
+

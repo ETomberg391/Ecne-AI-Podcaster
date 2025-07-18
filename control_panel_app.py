@@ -100,55 +100,45 @@ def save_llm_settings(llm_settings_data):
         return False, f"Error saving LLM settings: {e}"
 
 def find_output_files(base_dir):
-    """Finds the most recently generated output files in the outputs/ directory."""
+    """Finds the most recently generated output files in their respective directories."""
     outputs_base_dir = os.path.join(base_dir, 'outputs')
     if not os.path.exists(outputs_base_dir):
         return []
 
-    # Look for the final script in the scripts directory
-    scripts_dir = os.path.join(outputs_base_dir, 'scripts')
     final_files = []
     
-    if os.path.exists(scripts_dir):
-        try:
-            script_files = [f for f in os.listdir(scripts_dir) if f.endswith('_podcast_script.txt')]
-            if script_files:
-                # Get the most recent script file
-                script_files.sort(key=lambda x: os.path.getmtime(os.path.join(scripts_dir, x)), reverse=True)
-                latest_script = script_files[0]
-                final_files.append(f"scripts/{latest_script}")
-        except OSError as e:
-            print(f"Error listing files in {scripts_dir}: {e}")
+    # Define directories for each output type
+    scripts_dir = os.path.join(outputs_base_dir, 'scripts')
+    reports_dir = os.path.join(outputs_base_dir, 'reports')
+    youtube_dir = os.path.join(outputs_base_dir, 'youtube_descriptions')
 
-    # Look for the report file in the latest archive directory
-    archive_dir = os.path.join(outputs_base_dir, 'archive')
-    if os.path.exists(archive_dir):
+    # Helper to find the latest file in a directory
+    def find_latest_file(directory, suffix):
+        if not os.path.exists(directory):
+            return None
         try:
-            all_archive_items = [os.path.join(archive_dir, item) for item in os.listdir(archive_dir)]
-            archive_run_dirs = [item for item in all_archive_items if os.path.isdir(item)]
-            archive_run_dirs.sort(key=os.path.getmtime, reverse=True)
-
-            if archive_run_dirs:
-                latest_run_dir = archive_run_dirs[0]
-                print(f"Looking for output files in: {latest_run_dir}")
-                
-                try:
-                    files_in_latest_run = [os.path.join(latest_run_dir, f) for f in os.listdir(latest_run_dir) if os.path.isfile(os.path.join(latest_run_dir, f))]
-                    # Only include the report file if it exists
-                    report_files = [f for f in files_in_latest_run if f.endswith('_report.txt')]
-                    if report_files:
-                        relative_path = os.path.relpath(report_files[0], outputs_base_dir)
-                        final_files.append(relative_path)
-                    
-                    # Only include the YouTube description file if it exists
-                    youtube_desc_files = [f for f in files_in_latest_run if f.endswith('youtube_description.md')]
-                    if youtube_desc_files:
-                        relative_path = os.path.relpath(youtube_desc_files[0], outputs_base_dir)
-                        final_files.append(relative_path)
-                except OSError as e:
-                    print(f"Error listing files in {latest_run_dir}: {e}")
+            files = [f for f in os.listdir(directory) if f.endswith(suffix)]
+            if files:
+                files.sort(key=lambda x: os.path.getmtime(os.path.join(directory, x)), reverse=True)
+                return files[0]
         except OSError as e:
-            print(f"Error accessing archive directory {archive_dir}: {e}")
+            print(f"Error listing files in {directory}: {e}")
+        return None
+
+    # Find the latest script
+    latest_script = find_latest_file(scripts_dir, '_podcast_script.txt')
+    if latest_script:
+        final_files.append(f"scripts/{latest_script}")
+
+    # Find the latest report
+    latest_report = find_latest_file(reports_dir, '_report.txt')
+    if latest_report:
+        final_files.append(f"reports/{latest_report}")
+
+    # Find the latest YouTube description
+    latest_youtube_desc = find_latest_file(youtube_dir, '.md')
+    if latest_youtube_desc:
+        final_files.append(f"youtube_descriptions/{latest_youtube_desc}")
 
     return final_files
 
@@ -659,6 +649,7 @@ def generate_script():
         'api': '--api', 'llm-model': '--llm-model', 'max-web-results': '--max-web-results',
         'max-reddit-results': '--max-reddit-results', 'max-reddit-comments': '--max-reddit-comments',
         'per-keyword-results': '--per-keyword-results', 'score-threshold': '--score-threshold',
+        'ai-timeout': '--ai-timeout', 'ai-retries': '--ai-retries',
     }
     for field, arg in arg_map.items():
         value = data.get(field)

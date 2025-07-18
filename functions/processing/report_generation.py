@@ -80,7 +80,7 @@ def generate_report(summaries_with_scores, reference_docs_content, topic, config
         except IOError as e: log_to_file(f"Warning: Could not save report prompt: {e}")
 
     # Call AI
-    raw_response, cleaned_response = call_ai_api(prompt, config, tool_name="ReportGeneration", timeout=3000)
+    raw_response, cleaned_response = call_ai_api(prompt, config, tool_name="ReportGeneration", timeout=args.ai_timeout, retries=args.ai_retries)
 
     # Save raw response
     if run_archive_dir and raw_response:

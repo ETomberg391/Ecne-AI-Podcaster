@@ -51,6 +51,8 @@ def parse_arguments():
     parser.add_argument("--report", action="store_true", help="Generate a written report in addition to the script.")
     parser.add_argument("--youtube-description", action="store_true", help="Generate a YouTube description based on the report.")
     parser.add_argument("--score-threshold", type=int, default=5, help="Minimum summary score (0-10) to include in script.")
+    parser.add_argument("--ai-timeout", type=int, default=120, help="Global timeout in seconds for all AI API calls.")
+    parser.add_argument("--ai-retries", type=int, default=5, help="Global number of retries for all AI API calls.")
     parser.add_argument("--guidance", type=str, default=None, help="Additional guidance/instructions string for the LLM prompts.")
     parser.add_argument("--direct-articles", type=str, default=None, help="Path to a text file containing a list of article URLs (one per line) to scrape directly.")
     parser.add_argument("--no-search", action="store_true", help="Skip AI source discovery and web search APIs. Requires --direct-articles to be set.")

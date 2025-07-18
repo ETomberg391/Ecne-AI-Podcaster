@@ -4,6 +4,7 @@ import time
 import re
 import traceback # For printing tracebacks
 import random # For random delays in scraping (though scrape_content handles this now)
+import shutil
 
 # Import functions from the new modular structure
 from functions.config import load_config, load_character_profile
@@ -15,7 +16,7 @@ from functions.processing.summarization import summarize_content
 from functions.processing.report_generation import generate_report
 from functions.processing.youtube_descriptor import generate_youtube_description
 from functions.processing.script_generation import generate_and_refine_script
-from functions.utils import log_to_file, run_archive_dir, set_run_archive_dir # Import log_to_file, run_archive_dir, and set_run_archive_dir
+from functions.utils import log_to_file, run_archive_dir, set_run_archive_dir, close_log_file
 
 # --- Audio Synthesis (Placeholder) ---
 # This function is a placeholder and will be moved here from the original script.
@@ -114,12 +115,18 @@ def main():
     topic_slug = re.sub(r'\W+', '_', args.topic)[:50] # Sanitize topic for dir name
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     # Define the base archive directory within the current script's directory (Ecne-AI-Podcasterv2)
-    archive_base_dir = os.path.join(script_dir, "outputs")
-    run_archive_dir = os.path.join(archive_base_dir, f"{timestamp}_{topic_slug}") # Define run_archive_dir here
+    outputs_dir = os.path.join(script_dir, "outputs")
+    # Create all necessary output directories at the start
+    os.makedirs(os.path.join(outputs_dir, "scripts"), exist_ok=True)
+    os.makedirs(os.path.join(outputs_dir, "reports"), exist_ok=True)
+    os.makedirs(os.path.join(outputs_dir, "youtube_descriptions"), exist_ok=True)
+    os.makedirs(os.path.join(outputs_dir, "archive", "script_builder_archive"), exist_ok=True)
+
+    run_archive_dir = os.path.join(outputs_dir, f"{timestamp}_{topic_slug}") # Define run_archive_dir here
 
     try:
         os.makedirs(run_archive_dir, exist_ok=True)
-        print(f"Created archive directory: {run_archive_dir}")
+        print(f"Created temporary run directory: {run_archive_dir}")
         # Set the global run_archive_dir in utils
         set_run_archive_dir(run_archive_dir)
         # Initialize log file for this run
@@ -271,57 +278,71 @@ def main():
 
         # Renumbering subsequent steps mentally
         # 6. Generate Report (Optional)
-        report_filepath = None
+        report_filepath_temp = None
         if args.report:
             # Pass relevant_summaries AND reference_docs_content to generate_report
-            report_filepath = generate_report(relevant_summaries, reference_docs_content, args.topic, env_config, args)
-            if report_filepath:
-                print(f"\nSuccessfully generated report: {report_filepath}")
+            report_filepath_temp = generate_report(relevant_summaries, reference_docs_content, args.topic, env_config, args)
+            if report_filepath_temp:
+                print(f"\nSuccessfully generated report: {report_filepath_temp}")
             else:
                 print("\nWarning: Report generation failed, but continuing with script generation.")
                 log_to_file("Warning: Report generation failed.")
 
         # 6.5. Generate YouTube Description (Optional, requires report)
+        youtube_desc_filepath_temp = None # Initialize
         if args.youtube_description:
-            if report_filepath and os.path.exists(report_filepath):
+            if report_filepath_temp and os.path.exists(report_filepath_temp):
                 try:
-                    # Read the report content
-                    with open(report_filepath, 'r', encoding='utf-8') as rf:
+                    with open(report_filepath_temp, 'r', encoding='utf-8') as rf:
                         report_content = rf.read()
                     
-                    # Generate YouTube description
-                    youtube_desc_filepath = generate_youtube_description(report_content, args.topic, env_config, args)
-                    if youtube_desc_filepath:
-                        print(f"\nSuccessfully generated YouTube description: {youtube_desc_filepath}")
+                    youtube_desc_filepath_temp = generate_youtube_description(report_content, args.topic, env_config, args)
+                    if youtube_desc_filepath_temp:
+                        print(f"\nSuccessfully generated YouTube description: {youtube_desc_filepath_temp}")
                     else:
                         print("\nWarning: YouTube description generation failed.")
                         log_to_file("Warning: YouTube description generation failed.")
                 except Exception as e:
-                    print(f"\nError reading report file for YouTube description generation: {e}")
-                    log_to_file(f"Error reading report file for YouTube description: {e}")
+                    print(f"\nError during YouTube description generation: {e}")
+                    log_to_file(f"Error during YouTube description generation: {e}")
             else:
-                print("\nWarning: YouTube description generation requires a report to be generated first. Skipping YouTube description.")
-                log_to_file("Warning: YouTube description generation skipped - no report available.")
+                print("\nWarning: YouTube description generation requires a report. Skipping.")
+                log_to_file("Warning: YouTube description generation skipped - no report.")
 
         # 7. Generate & Refine Script
-        # Pass relevant_summaries AND reference_docs_content to generate_and_refine_script
         script_filepath_temp = generate_and_refine_script(relevant_summaries, reference_docs_content, args.topic, host_profile, guest_profile, env_config, args)
         if not script_filepath_temp:
             raise RuntimeError("Failed to generate or refine the podcast script.")
 
-        # Move the generated script to the desired outputs/scripts directory
+        # --- Archive Final Script, Report, and YouTube Description ---
+        run_dir_name = os.path.basename(run_archive_dir) if run_archive_dir else f"{timestamp}_{topic_slug}"
+        
+        # 1. Handle Final Script
         scripts_output_dir = os.path.join(script_dir, "outputs", "scripts")
-        os.makedirs(scripts_output_dir, exist_ok=True)
-        
-        # Extract filename from the temporary path
-        script_filename = os.path.basename(script_filepath_temp)
-        final_script_filepath = os.path.join(scripts_output_dir, script_filename)
-        
-        # Move the file
-        os.rename(script_filepath_temp, final_script_filepath)
-        script_filepath = final_script_filepath # Update script_filepath to the new location
-        print(f"Moved script to: {script_filepath}")
-        log_to_file(f"Moved script to: {script_filepath}")
+        final_script_filename = f"{run_dir_name}_podcast_script.txt"
+        final_script_filepath = os.path.join(scripts_output_dir, final_script_filename)
+        shutil.copy(script_filepath_temp, final_script_filepath)
+        script_filepath = final_script_filepath
+        print(f"Copied final script to: {script_filepath}")
+        log_to_file(f"Copied final script to: {script_filepath}")
+
+        # 2. Handle Report
+        if report_filepath_temp and os.path.exists(report_filepath_temp):
+            reports_output_dir = os.path.join(script_dir, "outputs", "reports")
+            final_report_filename = f"{run_dir_name}_report.txt"
+            final_report_filepath = os.path.join(reports_output_dir, final_report_filename)
+            shutil.move(report_filepath_temp, final_report_filepath)
+            print(f"Moved report to: {final_report_filepath}")
+            log_to_file(f"Moved report to: {final_report_filepath}")
+
+        # 3. Handle YouTube Description
+        if youtube_desc_filepath_temp and os.path.exists(youtube_desc_filepath_temp):
+            youtube_desc_output_dir = os.path.join(script_dir, "outputs", "youtube_descriptions")
+            final_desc_filename = f"Youtube_{run_dir_name}.md"
+            final_desc_filepath = os.path.join(youtube_desc_output_dir, final_desc_filename)
+            shutil.move(youtube_desc_filepath_temp, final_desc_filepath)
+            print(f"Moved YouTube description to: {final_desc_filepath}")
+            log_to_file(f"Moved YouTube description to: {final_desc_filepath}")
 
         # Display final script (optional)
         print("\n--- Final Script ---")
@@ -349,25 +370,21 @@ def main():
         print(f"Total Duration: {duration:.2f} seconds")
         log_to_file(f"--- AI Podcast Generator Run End --- Duration: {duration:.2f}s ---")
 
-        # Move the run archive directory to outputs/archive
+        # Close the log file BEFORE moving the directory
+        close_log_file()
+
+        # Move the run directory to the script builder archive
         if run_archive_dir and os.path.exists(run_archive_dir):
-            archive_base_dir = os.path.join(script_dir, "outputs", "archive")
-            os.makedirs(archive_base_dir, exist_ok=True)
+            script_builder_archive_dir = os.path.join(script_dir, "outputs", "archive", "script_builder_archive")
             
-            # Extract the directory name (timestamp_topic)
-            run_dir_name = os.path.basename(run_archive_dir)
-            new_archive_path = os.path.join(archive_base_dir, run_dir_name)
+            new_archive_path = os.path.join(script_builder_archive_dir, os.path.basename(run_archive_dir))
             
             try:
-                import shutil
                 shutil.move(run_archive_dir, new_archive_path)
-                print(f"Moved run directory to archive: {new_archive_path}")
-                log_to_file(f"Moved run directory to archive: {new_archive_path}")
-                # Update the global run_archive_dir in utils to the new location
-                set_run_archive_dir(new_archive_path)
+                print(f"Moved run directory to script builder archive: {new_archive_path}")
+                # No more logging after this point for this run
             except Exception as e:
-                print(f"Warning: Failed to move run directory to archive: {e}")
-                log_to_file(f"Warning: Failed to move run directory to archive: {e}")
+                print(f"Warning: Failed to move run directory to script builder archive: {e}")
 
     except Exception as e:
         print(f"\n--- Workflow Error ---")

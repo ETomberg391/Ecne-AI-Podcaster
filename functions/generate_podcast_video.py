@@ -379,10 +379,9 @@ def process_segment_worker(task_data, screen_size, args, temp_dir, work_dir):
         if segment_type == 'intro':
             clip = create_intro_outro_clip_object(task_data, screen_size, is_intro=True, args=args)
         elif segment_type == 'speech':
-            # Define trim amount here, could also be an arg if needed per-segment type
-            trim_amount_worker = 0.12 # This is the necessary trim for audio glitches
-            # Pass trim amount to the creation function
-            clip = create_speech_segment_clip_object(task_data, screen_size, work_dir, trim_amount=trim_amount_worker)
+            # Trim amount is now handled by generate_audio_segment based on JSON config.
+            # No additional trimming needed here.
+            clip = create_speech_segment_clip_object(task_data, screen_size, work_dir, trim_amount=0.0)
         elif segment_type == 'outro':
             clip = create_intro_outro_clip_object(task_data, screen_size, is_intro=False, args=args)
 

@@ -47,91 +47,104 @@
                     <option value="">Select a model</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label for="character-host">Host Profile Name:</label>
-                <input type="text" id="character-host" name="character-host" value="host" required>
-            </div>
-
-            <div class="form-group">
-                <label for="character-guest">Guest Profile Name:</label>
-                <input type="text" id="character-guest" name="character-guest" value="guest" required>
-            </div>
-
-            <div class="form-group">
-                <label for="from_date">From Date:</label>
-                <input type="date" id="from_date" name="from_date">
-            </div>
-
-            <div class="form-group">
-                <label for="to_date">To Date:</label>
-                <input type="date" id="to_date" name="to_date">
-            </div>
-
-            <div class="form-group">
-                <label for="max-web-results">Max Web Results:</label>
-                <input type="number" id="max-web-results" name="max-web-results" value="3" min="1">
-            </div>
-
-            <div class="form-group">
-                <label for="max-reddit-results">Max Reddit Posts:</label>
-                <input type="number" id="max-reddit-results" name="max-reddit-results" value="5" min="0">
-            </div>
-
-            <div class="form-group">
-                <label for="max-reddit-comments">Max Reddit Comments per Post:</label>
-                <input type="number" id="max-reddit-comments" name="max-reddit-comments" value="5" min="0">
-            </div>
-
-            <div class="form-group">
-                <label for="per-keyword-results">Per Keyword Results (Optional):</label>
-                <input type="number" id="per-keyword-results" name="per-keyword-results" min="1">
-            </div>
-
-            <div class="form-group">
-                <label for="score-threshold">Score Threshold (0-10):</label>
-                <input type="number" id="score-threshold" name="score-threshold" value="5" min="0" max="10">
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="combine-keywords" name="combine-keywords">
-                <label for="combine-keywords">Combine Keywords</label>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="no-search" name="no-search">
-                <label for="no-search">No Search (Use only provided documents/articles)</label>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="reference-docs-summarize" name="reference-docs-summarize">
-                <label for="reference-docs-summarize">Summarize Reference Docs</label>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="skip-refinement" name="skip-refinement">
-                <label for="skip-refinement">Skip Script Refinement</label>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <input type="checkbox" id="no-reddit" name="no-reddit">
-                <label for="no-reddit">Exclude Reddit</label>
-            </div>
-
-             <div class="form-group checkbox-group">
-                <input type="checkbox" id="report" name="report" checked>
-                <label for="report">Generate Report (Optional)</label>
-             </div>
-
-             <div class="form-group checkbox-group">
-                <input type="checkbox" id="youtube-description" name="youtube-description">
-                <label for="youtube-description">Generate YouTube Description (Optional)</label>
-             </div>
-
-
             <div class="form-group checkbox-group">
                <input type="checkbox" id="single-speaker" name="single-speaker">
                <label for="single-speaker">Single Speaker Mode (Host only, no Guest)</label>
             </div>
+
+            <details class="form-group">
+                <summary>Additional Options</summary>
+
+                <div class="form-group">
+                    <label for="character-host">Host Profile Name:</label>
+                    <input type="text" id="character-host" name="character-host" value="host" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="character-guest">Guest Profile Name:</label>
+                    <input type="text" id="character-guest" name="character-guest" value="guest" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="from_date">From Date:</label>
+                    <input type="date" id="from_date" name="from_date">
+                </div>
+
+                <div class="form-group">
+                    <label for="to_date">To Date:</label>
+                    <input type="date" id="to_date" name="to_date">
+                </div>
+
+                <div class="form-group">
+                    <label for="max-web-results">Max Web Results:</label>
+                    <input type="number" id="max-web-results" name="max-web-results" value="3" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="max-reddit-results">Max Reddit Posts:</label>
+                    <input type="number" id="max-reddit-results" name="max-reddit-results" value="5" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="max-reddit-comments">Max Reddit Comments per Post:</label>
+                    <input type="number" id="max-reddit-comments" name="max-reddit-comments" value="5" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="per-keyword-results">Per Keyword Results (Optional):</label>
+                    <input type="number" id="per-keyword-results" name="per-keyword-results" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label for="score-threshold">Score Threshold (0-10):</label>
+                    <input type="number" id="score-threshold" name="score-threshold" value="5" min="0" max="10">
+                </div>
+
+                <div class="form-group">
+                    <label for="ai-timeout">AI Timeout (seconds):</label>
+                    <input type="number" id="ai-timeout" name="ai-timeout" value="120" min="10">
+                </div>
+
+                <div class="form-group">
+                    <label for="ai-retries">AI Retries:</label>
+                    <input type="number" id="ai-retries" name="ai-retries" value="5" min="0">
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="combine-keywords" name="combine-keywords">
+                    <label for="combine-keywords">Combine Keywords</label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="no-search" name="no-search">
+                    <label for="no-search">No Search (Use only provided documents/articles)</label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="reference-docs-summarize" name="reference-docs-summarize">
+                    <label for="reference-docs-summarize">Summarize Reference Docs</label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="skip-refinement" name="skip-refinement">
+                    <label for="skip-refinement">Skip Script Refinement</label>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="no-reddit" name="no-reddit">
+                    <label for="no-reddit">Exclude Reddit</label>
+                </div>
+
+                 <div class="form-group checkbox-group">
+                    <input type="checkbox" id="report" name="report" checked>
+                    <label for="report">Generate Report (Optional)</label>
+                 </div>
+
+                 <div class="form-group checkbox-group">
+                    <input type="checkbox" id="youtube-description" name="youtube-description" checked>
+                    <label for="youtube-description">Generate YouTube Description (Optional)</label>
+                 </div>
+            </details>
 
 
             <div class="form-group">
