@@ -1,25 +1,20 @@
-Update Notes 7/17/2025:
-- Doing a series of tests before pushing final patches, and pulling to main. There were issues with glitchy split-second audio on some of the generations at the end and just seeing if it's port of the generation or glitch from concatonating the segments into the final .mp4 podcast. So far it seems like it's just some untraceable end glitches from some generations not seen on the waveform view... Which means I'll either have to figure it out further maybe slight more trim per segment 130~150ms, or just wary that you'll need to review final videos and redo any segment with glitchy audio.
+Update Summary for 7/18/2025:
 
-Update Notes 7/16/2025:
-- Fixed a series of bugs associated with the podcast builder GUI where if you redo a segment for some reason the padding gets set to 0 in the segment forcing any further redos to be 0 padding making the final product no spacing between speakers... So now it is set to 750ms between speakers, and 100ms between same speaker segments IF padding = 0. Just some workaround, along with better handling padding for redos just in case.
-- Additionally attempting to fix some gliched end-audio. I have a speculation I might need to increase the trimming by 10ms maybe. All the refinements cause a glitched end audio that the trimming handles. So I've noticed a split-second glitch on some ends of segments only revealed when finalized the full video. Seeing about trimming, and additional viewing tools per segment to make sure no glitch is included.
-
-Update Notes 7/15/2025:
-- Fixed bugs in resuming feature, and added a save and close button to save progress instead of saving and generating the final podcast. As a means to pick it back up in the json file for later with the resume feature.
-- Fixed "Missing Audio" error that deadstops a segment, and enabled redo to regenerate a segment to clear and corrupt audio issues.
-- Reworked some of the Script Builder to default youtube descriptions building enabled, and placed all additional settings under a dropdown menu for a cleaner look.
-
-Update Notes 7/12/2025:
-- Added an Easy mode for script building. Just click it, describe what you want to research and select your AI LLM backend. It will then automate a topic, 3 key words, and guidance.
-- Added a resume feature to podcast building. This will allow you to return to a completed podcast in case a segment wasn't perfect, giving you the ability to edit and rebuild without starting from scratch all over again.
-- Also reworked the output folders to better track scripts, archived podcasts, and finalized podcast videos.
-
-Still working on:
-- Working on restructuring the installation scripts to be easier, but also include no built-in sudo, and a installation_readme writeup on what is being installed for transparency.
-- Also working on documentation folder to describe how to customize the podcast (Characters, images, background, music, voices, etc). All of it relatively easy to customize.
-- No plans currently for dia-tts, but keeping my eyes open for any new developing tts services to incorporate that might work better (Preferrably in the same docker format and vram requirements of no more than 6gb vram). Chatterbox might be a good alternative.
-
+*   **Podcast Builder Enhancements:**
+    *   Fixed padding issues in GUI, ensuring consistent spacing between speakers (750ms) and same-speaker segments (100ms).
+    *   Added "Save and Close" for progress saving and a resume feature for editing completed podcasts.
+    *   Resolved "Missing Audio" errors, enabling segment regeneration for corrupt audio.
+*   **Audio Quality & Trimming:**
+    *   Addressed some of the split-second audio glitches at segment ends, exploring increased trimming (10-150ms) and new viewing tools.
+*   **Script Builder Improvements:**
+    *   Defaulted YouTube description building and streamlined settings into a dropdown menu.
+    *   Introduced "Easy mode" for automated script topic, keywords, and guidance.
+*   **Project Organization:**
+    *   Reworked output folders for better tracking of scripts, archived, and finalized podcast videos.
+*   **Future Work:**
+    *   Simplifying installation scripts (no sudo, transparent `installation_readme`).
+    *   Creating documentation for podcast customization (characters, images, music, voices).
+    *   Researching new TTS services with Docker FastAPI (e.g., Chatterbox) with low VRAM requirements (max 6GB).
 
 # Ecne AI Podcaster
 
