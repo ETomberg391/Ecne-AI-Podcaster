@@ -1,0 +1,20 @@
+# settings/voices/sohee.yaml
+# Qwen3 TTS - Sohee voice (Korean - Emotional, Warm Female)
+# Note: Can be used for English with voice cloning or cross-lingual synthesis
+
+gain_factor: 1.05
+trim_end_ms: 60
+nr_level: 0
+compress_thresh: 0.4
+compress_ratio: 2
+norm_frame_len: 10
+norm_gauss_size: 3
+desser_freq: 3600
+
+apply_ffmpeg_enhancement: true
+apply_deesser: true
+
+provider: qwen3
+language: Korean/English
+gender: Female
+description: "Emotional, Warm Female"

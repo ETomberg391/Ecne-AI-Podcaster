@@ -28,18 +28,118 @@
                 <input type="file" id="script_file" name="script_file" accept=".txt">
             </div>
 
+            <h2>TTS Provider</h2>
+            <div class="form-group">
+                <label for="tts_provider">TTS Provider:</label>
+                <select id="tts_provider" name="tts_provider">
+                    <option value="qwen3" selected>Qwen3 TTS (Native)</option>
+                    <option value="orpheus">Orpheus TTS (Docker)</option>
+                </select>
+            </div>
+
             <h2>Voice Settings</h2>
-            <div class="form-group">
-                <label for="host_voice">Host Voice:</label>
-                <input type="text" id="host_voice" name="host_voice" value="leo">
+            
+            <!-- Host Voice Section -->
+            <div class="voice-section">
+                <h3>Host Voice</h3>
+                <div class="form-group">
+                    <label for="host_voice_mode">Host Voice Mode:</label>
+                    <select id="host_voice_mode" name="host_voice_mode" onchange="toggleHostVoiceMode()">
+                        <option value="preset" selected>Preset Speaker</option>
+                        <option value="clone">Clone from Audio File</option>
+                        <option value="saved">Saved Cloned Voice</option>
+                    </select>
+                </div>
+                
+                <!-- Host Preset Voice Selection -->
+                <div id="host_preset_voice_group" class="form-group">
+                    <label for="host_voice">Host Preset Voice:</label>
+                    <select id="host_voice" name="host_voice">
+                        <option value="Ryan" selected>Ryan (English - Rhythmic, Dynamic Male)</option>
+                        <option value="Aiden">Aiden (English - Sunny, Clear American Male)</option>
+                        <option value="Vivian">Vivian (Chinese - Bright, Sharp, Young Female)</option>
+                        <option value="Serena">Serena (Chinese - Warm, Soft, Young Female)</option>
+                        <option value="Uncle_Fu">Uncle_Fu (Chinese - Deep, Mellow, Mature Male)</option>
+                        <option value="Dylan">Dylan (Chinese Beijing - Clear, Natural Young Male)</option>
+                        <option value="Eric">Eric (Chinese Sichuan - Lively, Husky Male)</option>
+                        <option value="Ono_Anna">Ono_Anna (Japanese - Light, Playful Female)</option>
+                        <option value="Sohee">Sohee (Korean - Emotional, Warm Female)</option>
+                    </select>
+                </div>
+                
+                <!-- Host Clone Voice Upload -->
+                <div id="host_clone_voice_group" class="form-group" style="display: none;">
+                    <label for="host_voice_sample">Host Voice Sample (MP3/WAV):</label>
+                    <input type="file" id="host_voice_sample" name="host_voice_sample" accept="audio/mp3,audio/wav,audio/mpeg,audio/*">
+                    <div class="help-text">Upload 3+ seconds of the host's voice for cloning</div>
+                </div>
+                <div id="host_clone_text_group" class="form-group" style="display: none;">
+                    <label for="host_voice_sample_text">Host Sample Text (Optional):</label>
+                    <textarea id="host_voice_sample_text" name="host_voice_sample_text" rows="2" placeholder="Enter the text spoken in the sample (improves quality)..."></textarea>
+                    <div class="help-text">Leave empty for X-Vector only mode</div>
+                </div>
+                
+                <!-- Host Saved Voice ID -->
+                <div id="host_saved_voice_group" class="form-group" style="display: none;">
+                    <label for="host_saved_voice_id">Host Saved Voice ID:</label>
+                    <input type="text" id="host_saved_voice_id" name="host_saved_voice_id" placeholder="e.g., voice_abc123">
+                    <button type="button" class="btn-secondary" onclick="loadSavedVoices('host')">Load Saved Voices</button>
+                    <div id="host_saved_voices_list" class="voice-list" style="display: none; margin-top: 10px;"></div>
+                </div>
             </div>
-            <div class="form-group" id="guest_voice_group">
-                <label for="guest_voice">Guest Voice:</label>
-                <input type="text" id="guest_voice" name="guest_voice" value="tara">
+            
+            <!-- Guest Voice Section -->
+            <div class="voice-section">
+                <h3>Guest Voice</h3>
+                <div class="form-group">
+                    <label for="guest_voice_mode">Guest Voice Mode:</label>
+                    <select id="guest_voice_mode" name="guest_voice_mode" onchange="toggleGuestVoiceMode()">
+                        <option value="preset" selected>Preset Speaker</option>
+                        <option value="clone">Clone from Audio File</option>
+                        <option value="saved">Saved Cloned Voice</option>
+                    </select>
+                </div>
+                
+                <!-- Guest Preset Voice Selection -->
+                <div id="guest_preset_voice_group" class="form-group">
+                    <label for="guest_voice">Guest Preset Voice:</label>
+                    <select id="guest_voice" name="guest_voice">
+                        <option value="Serena" selected>Serena (Chinese - Warm, Soft, Young Female)</option>
+                        <option value="Vivian">Vivian (Chinese - Bright, Sharp, Young Female)</option>
+                        <option value="Ryan">Ryan (English - Rhythmic, Dynamic Male)</option>
+                        <option value="Aiden">Aiden (English - Sunny, Clear American Male)</option>
+                        <option value="Uncle_Fu">Uncle_Fu (Chinese - Deep, Mellow, Mature Male)</option>
+                        <option value="Dylan">Dylan (Chinese Beijing - Clear, Natural Young Male)</option>
+                        <option value="Eric">Eric (Chinese Sichuan - Lively, Husky Male)</option>
+                        <option value="Ono_Anna">Ono_Anna (Japanese - Light, Playful Female)</option>
+                        <option value="Sohee">Sohee (Korean - Emotional, Warm Female)</option>
+                    </select>
+                </div>
+                
+                <!-- Guest Clone Voice Upload -->
+                <div id="guest_clone_voice_group" class="form-group" style="display: none;">
+                    <label for="guest_voice_sample">Guest Voice Sample (MP3/WAV):</label>
+                    <input type="file" id="guest_voice_sample" name="guest_voice_sample" accept="audio/mp3,audio/wav,audio/mpeg,audio/*">
+                    <div class="help-text">Upload 3+ seconds of the guest's voice for cloning</div>
+                </div>
+                <div id="guest_clone_text_group" class="form-group" style="display: none;">
+                    <label for="guest_voice_sample_text">Guest Sample Text (Optional):</label>
+                    <textarea id="guest_voice_sample_text" name="guest_voice_sample_text" rows="2" placeholder="Enter the text spoken in the sample (improves quality)..."></textarea>
+                    <div class="help-text">Leave empty for X-Vector only mode</div>
+                </div>
+                
+                <!-- Guest Saved Voice ID -->
+                <div id="guest_saved_voice_group" class="form-group" style="display: none;">
+                    <label for="guest_saved_voice_id">Guest Saved Voice ID:</label>
+                    <input type="text" id="guest_saved_voice_id" name="guest_saved_voice_id" placeholder="e.g., voice_xyz789">
+                    <button type="button" class="btn-secondary" onclick="loadSavedVoices('guest')">Load Saved Voices</button>
+                    <div id="guest_saved_voices_list" class="voice-list" style="display: none; margin-top: 10px;"></div>
+                </div>
             </div>
+            
             <div class="form-group">
-                <label for="speed">Speech Speed Factor (0.5 to 1.5):</label>
-                <input type="number" id="speed" name="speed" value="1.0" step="0.1" min="0.5" max="1.5">
+                <label for="speed">Speech Speed Factor (0.5 to 2.0):</label>
+                <input type="number" id="speed" name="speed" value="1.0" step="0.1" min="0.5" max="2.0">
             </div>
             <div class="form-group">
                 <label for="silence">Silence Duration between segments (seconds):</label>
@@ -65,12 +165,12 @@
 
                 <h3>API Settings</h3>
                 <div class="form-group">
-                    <label for="api_host">Orpheus-FastAPI Host:</label>
+                    <label for="api_host">Qwen3 TTS API Host:</label>
                     <input type="text" id="api_host" name="api_host" value="127.0.0.1">
                 </div>
                 <div class="form-group">
-                    <label for="port">Orpheus-FastAPI Port:</label>
-                    <input type="number" id="port" name="port" value="5005">
+                    <label for="port">Qwen3 TTS API Port:</label>
+                    <input type="number" id="port" name="port" value="8000">
                 </div>
                 <div class="form-group">
                     <label for="tts_max_retries">TTS Max Retries (for failed requests):</label>
@@ -178,6 +278,113 @@
         </div>
     </div>
 
+    <style>
+        .voice-section {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .voice-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .voice-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            background: white;
+        }
+        .voice-item {
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .voice-item:hover {
+            background: #f5f5f5;
+        }
+        .voice-item:last-child {
+            border-bottom: none;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+    </style>
+    
+    <script>
+        // Toggle Host Voice Mode
+        function toggleHostVoiceMode() {
+            const mode = document.getElementById('host_voice_mode').value;
+            document.getElementById('host_preset_voice_group').style.display = mode === 'preset' ? 'block' : 'none';
+            document.getElementById('host_clone_voice_group').style.display = mode === 'clone' ? 'block' : 'none';
+            document.getElementById('host_clone_text_group').style.display = mode === 'clone' ? 'block' : 'none';
+            document.getElementById('host_saved_voice_group').style.display = mode === 'saved' ? 'block' : 'none';
+        }
+        
+        // Toggle Guest Voice Mode
+        function toggleGuestVoiceMode() {
+            const mode = document.getElementById('guest_voice_mode').value;
+            document.getElementById('guest_preset_voice_group').style.display = mode === 'preset' ? 'block' : 'none';
+            document.getElementById('guest_clone_voice_group').style.display = mode === 'clone' ? 'block' : 'none';
+            document.getElementById('guest_clone_text_group').style.display = mode === 'clone' ? 'block' : 'none';
+            document.getElementById('guest_saved_voice_group').style.display = mode === 'saved' ? 'block' : 'none';
+        }
+        
+        // Load Saved Voices from Qwen3 API
+        async function loadSavedVoices(speaker) {
+            const apiHost = document.getElementById('api_host').value || '127.0.0.1';
+            const apiPort = document.getElementById('port').value || '8000';
+            const apiUrl = `http://${apiHost}:${apiPort}`;
+            
+            const listDiv = document.getElementById(speaker + '_saved_voices_list');
+            listDiv.innerHTML = '<div class="help-text">Loading...</div>';
+            listDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${apiUrl}/v1/voices`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.voices.length === 0) {
+                        listDiv.innerHTML = '<div class="help-text">No saved voices found. Clone a voice first!</div>';
+                    } else {
+                        let html = '';
+                        data.voices.forEach(voice => {
+                            html += `<div class="voice-item" onclick="document.getElementById('${speaker}_saved_voice_id').value='${voice.voice_id}'">`;
+                            html += `<strong>${voice.name}</strong> (${voice.voice_id})<br>`;
+                            html += `<small>${voice.description || 'No description'}</small>`;
+                            html += `</div>`;
+                        });
+                        listDiv.innerHTML = html;
+                    }
+                } else {
+                    listDiv.innerHTML = '<div class="help-text" style="color: red;">Failed to load voices. Is Qwen3 TTS running?</div>';
+                }
+            } catch (error) {
+                listDiv.innerHTML = '<div class="help-text" style="color: red;">Error: ' + error.message + '</div>';
+            }
+        }
+    </script>
     <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
 </html>

@@ -30,13 +30,15 @@ def call_ai_api(prompt, config, tool_name="General", timeout=300, retries=1, bas
         return None, None
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    # Get model name - support both 'model' and 'model_name' fields
+    model_name = model_config.get("model") or model_config.get("model_name")
     payload = {
-        "model": model_config.get("model"),
+        "model": model_name,
         "messages": [{"role": "user", "content": prompt}],
     }
     # Dynamically add optional parameters from config
     for param in ["temperature", "max_tokens", "top_p"]:
-        if param in model_config:
+        if param in model_config and model_config[param] is not None:
             # Ensure correct type, e.g., float for temp, int for tokens
             try:
                 if param == "temperature" or param == "top_p":

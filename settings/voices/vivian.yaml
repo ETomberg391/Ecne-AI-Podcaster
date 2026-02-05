@@ -1,0 +1,20 @@
+# settings/voices/vivian.yaml
+# Qwen3 TTS - Vivian voice (Chinese - Bright, Sharp, Young Female)
+# Note: Can be used for English with voice cloning or cross-lingual synthesis
+
+gain_factor: 1.0
+trim_end_ms: 60
+nr_level: 0
+compress_thresh: 0.4
+compress_ratio: 2
+norm_frame_len: 10
+norm_gauss_size: 3
+desser_freq: 3500
+
+apply_ffmpeg_enhancement: true
+apply_deesser: true
+
+provider: qwen3
+language: Chinese/English
+gender: Female
+description: "Bright, Sharp, Young Female"

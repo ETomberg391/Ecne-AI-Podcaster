@@ -101,9 +101,9 @@ def main():
         print(f"Available configurations: {list(models_config.keys())}")
         log_to_file(f"Run Error: Invalid final model key selected: '{final_model_key}'")
         exit(1)
-    if 'model' not in final_model_config:
-        print(f"Error: 'model' name is missing in the configuration for '{final_model_key}' in ai_models.yml")
-        log_to_file(f"Run Error: 'model' name missing for selected config key: '{final_model_key}'")
+    if 'model' not in final_model_config and 'model_name' not in final_model_config:
+        print(f"Error: 'model' or 'model_name' is missing in the configuration for '{final_model_key}' in ai_models.yml")
+        log_to_file(f"Run Error: 'model' or 'model_name' missing for selected config key: '{final_model_key}'")
         exit(1)
 
     # Store the final selected config back into the main config dict for use by call_ai_api

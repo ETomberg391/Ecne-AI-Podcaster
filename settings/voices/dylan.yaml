@@ -1,0 +1,19 @@
+# settings/voices/dylan.yaml
+# Qwen3 TTS - Dylan voice (Chinese Beijing - Clear, Natural Young Male)
+
+gain_factor: 1.0
+trim_end_ms: 50
+nr_level: 0
+compress_thresh: 0.3
+compress_ratio: 2
+norm_frame_len: 10
+norm_gauss_size: 3
+desser_freq: 4800
+
+apply_ffmpeg_enhancement: true
+apply_deesser: false
+
+provider: qwen3
+language: Chinese
+gender: Male
+description: "Beijing accent, Clear, Natural Young Male"

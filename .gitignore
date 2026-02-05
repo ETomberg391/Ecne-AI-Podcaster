@@ -9,4 +9,5 @@ functions/__pycache__/*
 */*/__pycache__/*
 */*/*/__pycache__/*
 temp_audio/*
+venv/*
 

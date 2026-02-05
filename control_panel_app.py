@@ -10,6 +10,7 @@ from dotenv import load_dotenv, set_key
 import traceback
 import datetime
 import time
+import requests
 from functions.ai import call_ai_api
 
 # Load environment variables from .env file at the start
@@ -370,6 +371,166 @@ def stop_docker_containers():
         return {'success': False, 'message': 'Docker stop command timed out (30s).'}
     except Exception as e:
         return {'success': False, 'message': f'Error stopping Docker containers: {str(e)}'}
+
+# --- Qwen3 TTS Service Functions ---
+
+def check_qwen3_status():
+    """Check if Qwen3 TTS service is running via health endpoint."""
+    qwen3_port = os.getenv('QWEN3_PORT', '8000')
+    health_url = f"http://127.0.0.1:{qwen3_port}/health"
+    
+    try:
+        response = requests.get(health_url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Also check model status
+            models_status = get_qwen3_models_status(qwen3_port)
+            
+            return {
+                'status': 'running',
+                'message': 'Qwen3 TTS service is running',
+                'provider': data.get('provider', 'qwen3'),
+                'model': data.get('model', 'unknown'),
+                'voices_available': data.get('voices_available', 0),
+                'url': health_url,
+                'models': models_status
+            }
+        else:
+            return {
+                'status': 'error',
+                'message': f'Qwen3 TTS returned status {response.status_code}',
+                'url': health_url
+            }
+    except requests.exceptions.ConnectionError:
+        return {
+            'status': 'stopped',
+            'message': 'Qwen3 TTS service is not running (connection refused)',
+            'url': health_url
+        }
+    except requests.exceptions.Timeout:
+        return {
+            'status': 'timeout',
+            'message': 'Qwen3 TTS service timed out (may be starting up)',
+            'url': health_url
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Error checking Qwen3 TTS status: {str(e)}',
+            'url': health_url
+        }
+
+
+def get_qwen3_models_status(port):
+    """Get model download/load status from Qwen3 API."""
+    try:
+        response = requests.get(f"http://127.0.0.1:{port}/v1/models/status", timeout=5)
+        if response.status_code == 200:
+            models = response.json()
+            # Filter to main models of interest
+            main_models = ['qwen3-tts-1.7b-base', 'qwen3-tts-1.7b-customvoice']
+            return [m for m in models if m['model_id'] in main_models]
+        return []
+    except:
+        return []
+
+def start_qwen3_service():
+    """Start Qwen3 TTS service."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    qwen3_dir = os.path.join(script_dir, 'EcneAI-Qwen-3-TTS-api')
+    
+    if not os.path.exists(qwen3_dir):
+        return {
+            'success': False,
+            'message': 'Qwen3 TTS service not found. Please run the installer first.'
+        }
+    
+    # Check if already running
+    status = check_qwen3_status()
+    if status['status'] == 'running':
+        return {'success': True, 'message': 'Qwen3 TTS service is already running'}
+    
+    try:
+        # Determine activation script based on OS
+        if os.name == 'nt':  # Windows
+            activate_script = os.path.join(qwen3_dir, 'venv', 'Scripts', 'activate.bat')
+            cmd = f'call "{activate_script}" && python -m uvicorn api.main:app --host 127.0.0.1 --port 8000'
+            # Start in a new process
+            subprocess.Popen(
+                cmd,
+                cwd=qwen3_dir,
+                shell=True,
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+        else:  # Linux/Mac
+            activate_script = os.path.join(qwen3_dir, 'venv', 'bin', 'activate')
+            cmd = f'source "{activate_script}" && python -m uvicorn api.main:app --host 127.0.0.1 --port 8000'
+            # Start with nohup to keep running after parent exits
+            subprocess.Popen(
+                ['bash', '-c', f'cd "{qwen3_dir}" && {cmd} > ../logs/qwen3_service.log 2>&1 &'],
+                shell=False
+            )
+        
+        # Wait a moment and check if it started
+        time.sleep(3)
+        status = check_qwen3_status()
+        if status['status'] == 'running':
+            return {'success': True, 'message': 'Qwen3 TTS service started successfully'}
+        else:
+            return {
+                'success': True,
+                'message': 'Qwen3 TTS service is starting (may take a moment to be ready)'
+            }
+            
+    except Exception as e:
+        return {'success': False, 'message': f'Error starting Qwen3 TTS service: {str(e)}'}
+
+def stop_qwen3_service():
+    """Stop Qwen3 TTS service by finding and killing the process."""
+    try:
+        # Find uvicorn processes on port 8000
+        if os.name == 'nt':  # Windows
+            result = subprocess.run(
+                ['tasklist', '/FI', 'IMAGENAME eq python.exe', '/FO', 'CSV'],
+                capture_output=True, text=True
+            )
+            # Look for uvicorn in the command line
+            result2 = subprocess.run(
+                ['wmic', 'process', 'where', 'name="python.exe"', 'get', 'ProcessId,CommandLine', '/format:csv'],
+                capture_output=True, text=True
+            )
+            
+            # Parse and kill uvicorn processes
+            killed = False
+            for line in result2.stdout.split('\n'):
+                if 'uvicorn' in line.lower() and '8000' in line:
+                    parts = line.strip().split(',')
+                    if len(parts) >= 2:
+                        try:
+                            pid = int(parts[-1])
+                            subprocess.run(['taskkill', '/PID', str(pid), '/F'], capture_output=True)
+                            killed = True
+                        except (ValueError, IndexError):
+                            pass
+            
+            if killed:
+                return {'success': True, 'message': 'Qwen3 TTS service stopped'}
+            else:
+                return {'success': False, 'message': 'Qwen3 TTS service not found or already stopped'}
+        else:  # Linux/Mac
+            # Find and kill uvicorn processes
+            result = subprocess.run(
+                ["pkill", "-f", "uvicorn.*8000"],
+                capture_output=True
+            )
+            if result.returncode == 0:
+                return {'success': True, 'message': 'Qwen3 TTS service stopped'}
+            else:
+                return {'success': False, 'message': 'Qwen3 TTS service not found or already stopped'}
+                
+    except Exception as e:
+        return {'success': False, 'message': f'Error stopping Qwen3 TTS service: {str(e)}'}
 
 # --- Process Management Functions ---
 
@@ -833,9 +994,62 @@ def generate_podcast_video():
         else:
             return jsonify({"status": "error", "message": "Please select a script from the dropdown or choose 'Custom' to upload a file."}), 400
 
+    # TTS Provider
+    tts_provider = data.get('tts_provider', 'qwen3')
+    command.extend(['--tts-provider', tts_provider])
+    
+    # Handle Host Voice
+    host_voice_mode = data.get('host_voice_mode', 'preset')
+    if host_voice_mode == 'preset':
+        host_voice = data.get('host_voice')
+        if host_voice:
+            command.extend(['--host-voice', host_voice])
+    elif host_voice_mode == 'clone':
+        # Handle voice clone file upload for host
+        host_sample = uploaded_files.get('host_voice_sample')
+        if host_sample and host_sample.filename:
+            host_sample_path = os.path.join(control_panel_app.config['UPLOAD_FOLDER'], f"host_{host_sample.filename}")
+            host_sample.save(host_sample_path)
+            command.extend(['--host-voice-sample', host_sample_path])
+            host_sample_text = data.get('host_voice_sample_text')
+            if host_sample_text:
+                command.extend(['--host-voice-text', host_sample_text])
+        else:
+            return jsonify({"status": "error", "message": "Please upload a voice sample file for host voice cloning"}), 400
+    elif host_voice_mode == 'saved':
+        host_saved_id = data.get('host_saved_voice_id')
+        if host_saved_id:
+            command.extend(['--host-voice', host_saved_id])
+        else:
+            return jsonify({"status": "error", "message": "Please enter a saved voice ID for host"}), 400
+    
+    # Handle Guest Voice
+    guest_voice_mode = data.get('guest_voice_mode', 'preset')
+    if guest_voice_mode == 'preset':
+        guest_voice = data.get('guest_voice')
+        if guest_voice:
+            command.extend(['--guest-voice', guest_voice])
+    elif guest_voice_mode == 'clone':
+        # Handle voice clone file upload for guest
+        guest_sample = uploaded_files.get('guest_voice_sample')
+        if guest_sample and guest_sample.filename:
+            guest_sample_path = os.path.join(control_panel_app.config['UPLOAD_FOLDER'], f"guest_{guest_sample.filename}")
+            guest_sample.save(guest_sample_path)
+            command.extend(['--guest-voice-sample', guest_sample_path])
+            guest_sample_text = data.get('guest_voice_sample_text')
+            if guest_sample_text:
+                command.extend(['--guest-voice-text', guest_sample_text])
+        else:
+            return jsonify({"status": "error", "message": "Please upload a voice sample file for guest voice cloning"}), 400
+    elif guest_voice_mode == 'saved':
+        guest_saved_id = data.get('guest_saved_voice_id')
+        if guest_saved_id:
+            command.extend(['--guest-voice', guest_saved_id])
+        else:
+            return jsonify({"status": "error", "message": "Please enter a saved voice ID for guest"}), 400
+    
     arg_map = {
-        'host_voice': '--host-voice', 'guest_voice': '--guest-voice', 'silence': '--silence',
-        'speed': '--speed', 'port': '--port', 'api_host': '--api-host',
+        'silence': '--silence', 'speed': '--speed', 'port': '--port', 'api_host': '--api-host',
         'output_filename': '--output', 'video_resolution': '--video-resolution',
         'video_fps': '--video-fps', 'video_character_scale': '--video-character-scale',
         'video_fade': '--video-fade', 'video_intermediate_preset': '--video-intermediate-preset',
@@ -1026,6 +1240,80 @@ def docker_stop():
         return jsonify({"status": "success", "message": result['message']})
     else:
         return jsonify({"status": "error", "message": result['message']}), 500
+
+@control_panel_app.route('/tts/status', methods=['GET'])
+def tts_status():
+    """Get the current status of the TTS service (Qwen3 or check Docker for Orpheus)."""
+    tts_provider = os.getenv('TTS_PROVIDER', 'qwen3').lower()
+    
+    if tts_provider == 'qwen3':
+        status = check_qwen3_status()
+        status['provider'] = 'qwen3'
+        return jsonify(status)
+    else:
+        # For Orpheus, check Docker status
+        status = check_docker_status()
+        status['provider'] = 'orpheus'
+        return jsonify(status)
+
+@control_panel_app.route('/tts/start', methods=['POST'])
+def tts_start():
+    """Start the TTS service based on configured provider."""
+    tts_provider = os.getenv('TTS_PROVIDER', 'qwen3').lower()
+    
+    if tts_provider == 'qwen3':
+        result = start_qwen3_service()
+        if result['success']:
+            return jsonify({"status": "success", "message": result['message']})
+        else:
+            return jsonify({"status": "error", "message": result['message']}), 500
+    else:
+        # For Orpheus, start Docker containers
+        result = start_docker_containers()
+        if result['success']:
+            return jsonify({"status": "success", "message": result['message']})
+        else:
+            return jsonify({"status": "error", "message": result['message']}), 500
+
+@control_panel_app.route('/tts/models/download/<model_id>', methods=['POST'])
+def download_tts_model(model_id):
+    """Download/load a specific TTS model."""
+    qwen3_port = os.getenv('QWEN3_PORT', '8000')
+    
+    try:
+        response = requests.post(
+            f"http://127.0.0.1:{qwen3_port}/v1/models/{model_id}/load",
+            timeout=300  # 5 minutes for download
+        )
+        if response.status_code == 200:
+            return jsonify({"status": "success", "message": f"Model {model_id} downloaded and loaded"})
+        else:
+            data = response.json() if response.text else {}
+            return jsonify({"status": "error", "message": data.get('detail', f'Failed to download model: {response.status_code}')}), response.status_code
+    except requests.exceptions.ConnectionError:
+        return jsonify({"status": "error", "message": "Cannot connect to Qwen3 TTS API"}), 503
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@control_panel_app.route('/tts/stop', methods=['POST'])
+def tts_stop():
+    """Stop the TTS service based on configured provider."""
+    tts_provider = os.getenv('TTS_PROVIDER', 'qwen3').lower()
+    
+    if tts_provider == 'qwen3':
+        result = stop_qwen3_service()
+        if result['success']:
+            return jsonify({"status": "success", "message": result['message']})
+        else:
+            return jsonify({"status": "error", "message": result['message']}), 500
+    else:
+        # For Orpheus, stop Docker containers
+        result = stop_docker_containers()
+        if result['success']:
+            return jsonify({"status": "success", "message": result['message']})
+        else:
+            return jsonify({"status": "error", "message": result['message']}), 500
 
 if __name__ == '__main__':
     control_panel_app.run(debug=True, port=5000)

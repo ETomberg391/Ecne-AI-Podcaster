@@ -24,6 +24,50 @@ PIP_CMD="pip3"     # Change if your pip 3 is just 'pip'
 LLAMA_SERVER_EXE_NAME="llama-server" # Confirmed executable name
 ORPHEUS_MAX_TOKENS="8192" # Default max tokens for llama.cpp server
 
+# --- TTS Provider Selection ---
+TTS_PROVIDER=""
+
+select_tts_provider() {
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║         Ecne AI Podcaster - TTS Provider Selection           ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Choose your TTS (Text-to-Speech) provider:"
+    echo ""
+    echo "  [1] Qwen3 TTS (RECOMMENDED)"
+    echo "      • Native Python service (no Docker required)"
+    echo "      • High-quality voice synthesis"
+    echo "      • Voice cloning capabilities"
+    echo "      • 9 preset speakers"
+    echo ""
+    echo "  [2] Orpheus TTS (Legacy)"
+    echo "      • Docker-based setup required"
+    echo "      • NVIDIA GPU with Container Toolkit required"
+    echo "      • More complex installation"
+    echo ""
+    
+    while true; do
+        read -p "Enter your choice [1-2]: " choice
+        case $choice in
+            1)
+                TTS_PROVIDER="qwen3"
+                print_info "Selected: Qwen3 TTS"
+                break
+                ;;
+            2)
+                TTS_PROVIDER="orpheus"
+                print_info "Selected: Orpheus TTS"
+                break
+                ;;
+            *)
+                echo "Invalid choice. Please enter 1 or 2."
+                ;;
+        esac
+    done
+    echo ""
+}
+
 # --- Helper Functions ---
 print_info() {
     echo "INFO: $1"
@@ -109,6 +153,32 @@ check_command() {
 
 # --- Main Script ---
 
+echo "---------------------------------------------"
+echo " Ecne AI Podcaster - Universal TTS Setup     "
+echo "---------------------------------------------"
+
+# Select TTS Provider first
+select_tts_provider
+
+# If Qwen3 selected, run the simplified installer and exit
+if [ "$TTS_PROVIDER" = "qwen3" ]; then
+    print_info "Starting Qwen3 TTS setup..."
+    
+    # Source the Qwen3 installer functions
+    if [ -f "$SCRIPT_DIR/Installer_Qwen3_Linux.sh" ]; then
+        # Export functions so they're available
+        source "$SCRIPT_DIR/Installer_Qwen3_Linux.sh"
+        # Run the main function from the Qwen3 installer
+        main
+        exit 0
+    else
+        print_error "Installer_Qwen3_Linux.sh not found. Please ensure all installer files are present."
+        exit 1
+    fi
+fi
+
+# Continue with Orpheus setup (legacy path)
+print_info "Starting Orpheus TTS setup..."
 echo "---------------------------------------------"
 echo " Orpheus TTS GGUF Setup Script (V5 - Simplified Build) "
 echo "---------------------------------------------"

@@ -13,6 +13,42 @@ from functions.tts.utils import generate_silence, concatenate_wavs
 from functions.tts.args import parse_tts_arguments
 from functions.tts.gui.main_window import dev_mode_process # Import dev_mode_process
 from functions.generate_podcast_video import main as generate_video # Import video generation
+import requests
+
+def clone_voice_for_podcast(api_host, api_port, voice_sample_path, voice_sample_text=None, voice_name="Cloned Voice"):
+    """
+    Clone a voice using the Qwen3 TTS API.
+    Returns the voice_id for the cloned voice.
+    """
+    try:
+        api_url = f"http://{api_host}:{api_port}"
+        
+        # Prepare the request
+        with open(voice_sample_path, 'rb') as f:
+            files = {'voice_sample': f}
+            data = {'name': voice_name}
+            if voice_sample_text:
+                data['voice_sample_text'] = voice_sample_text
+            
+            print(f"  -> Cloning voice from {voice_sample_path}...")
+            response = requests.post(
+                f"{api_url}/v1/voices",
+                files=files,
+                data=data,
+                timeout=60
+            )
+        
+        if response.status_code == 201:
+            result = response.json()
+            voice_id = result.get('voice_id')
+            print(f"  ✅ Voice cloned successfully! Voice ID: {voice_id}")
+            return voice_id
+        else:
+            print(f"  ❌ Failed to clone voice: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"  ❌ Error cloning voice: {e}")
+        return None
 
 # Constants
 OUTPUT_DIR = "outputs"
@@ -57,6 +93,70 @@ def main():
     target_sr = None
     dev_mode_process_result = None # To be accessible in the wider scope
 
+    # Check Qwen3 API health before proceeding
+    if args.tts_provider == 'qwen3' or args.tts_provider is None:
+        from functions.tts.providers import Qwen3Provider
+        api_port = args.qwen3_port if hasattr(args, 'qwen3_port') else (args.port if hasattr(args, 'port') else 8000)
+        
+        provider = Qwen3Provider(api_host=args.api_host, api_port=api_port)
+        is_healthy, message, health_data = provider.check_health()
+        
+        if not is_healthy:
+            print("\n" + "="*60)
+            print("QWEN3 TTS API NOT READY")
+            print("="*60)
+            print(f"Status: {message}")
+            print("\nTo fix this:")
+            print("1. Ensure Qwen3 TTS service is running:")
+            print("   ./start_qwen3.sh")
+            print("\n2. Download required models:")
+            models_needed = []
+            if hasattr(args, 'host_voice_sample') and args.host_voice_sample:
+                models_needed.append("qwen3-tts-1.7b-base (for voice cloning)")
+            else:
+                models_needed.append("qwen3-tts-1.7b-customvoice (for preset voices)")
+            if hasattr(args, 'guest_voice_sample') and args.guest_voice_sample:
+                models_needed.append("qwen3-tts-1.7b-base (for voice cloning)")
+            
+            for model in set(models_needed):
+                print(f"   python EcneAI-Qwen-3-TTS-api/scripts/download_models.py --model {model}")
+            print("="*60 + "\n")
+            sys.exit(1)
+        else:
+            print(f"✅ {message}")
+    
+    # Handle Voice Cloning (if voice samples are provided)
+    if args.tts_provider == 'qwen3' or args.tts_provider is None:
+        # Clone Host Voice if sample provided
+        if hasattr(args, 'host_voice_sample') and args.host_voice_sample:
+            print("\n=== Cloning Host Voice ===")
+            cloned_host_id = clone_voice_for_podcast(
+                args.api_host, api_port,
+                args.host_voice_sample,
+                args.host_voice_text if hasattr(args, 'host_voice_text') else None,
+                "Host Voice"
+            )
+            if cloned_host_id:
+                args.host_voice = cloned_host_id
+                print(f"   Host voice set to cloned ID: {cloned_host_id}")
+            else:
+                print("   ⚠️  Failed to clone host voice, using preset voice instead")
+        
+        # Clone Guest Voice if sample provided
+        if hasattr(args, 'guest_voice_sample') and args.guest_voice_sample:
+            print("\n=== Cloning Guest Voice ===")
+            cloned_guest_id = clone_voice_for_podcast(
+                args.api_host, api_port,
+                args.guest_voice_sample,
+                args.guest_voice_text if hasattr(args, 'guest_voice_text') else None,
+                "Guest Voice"
+            )
+            if cloned_guest_id:
+                args.guest_voice = cloned_guest_id
+                print(f"   Guest voice set to cloned ID: {cloned_guest_id}")
+            else:
+                print("   ⚠️  Failed to clone guest voice, using preset voice instead")
+    
     try:
         if args.input:
             temp_file, generated_sr = generate_audio_segment(
