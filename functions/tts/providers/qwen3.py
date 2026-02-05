@@ -324,6 +324,10 @@ class Qwen3Provider(TTSProvider):
                     data['description'] = description
                 if sample_text:
                     data['voice_sample_text'] = sample_text
+                else:
+                    # Enable x_vector_only mode when no sample text provided
+                    # This allows zero-shot voice cloning without transcript
+                    data['x_vector_only'] = 'true'
                 
                 response = requests.post(api_url, data=data, files=files, timeout=60)
                 response.raise_for_status()

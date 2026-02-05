@@ -29,6 +29,10 @@ def clone_voice_for_podcast(api_host, api_port, voice_sample_path, voice_sample_
             data = {'name': voice_name}
             if voice_sample_text:
                 data['voice_sample_text'] = voice_sample_text
+            else:
+                # Enable x_vector_only mode when no sample text provided
+                # This allows zero-shot voice cloning without transcript
+                data['x_vector_only'] = 'true'
             
             print(f"  -> Cloning voice from {voice_sample_path}...")
             response = requests.post(
