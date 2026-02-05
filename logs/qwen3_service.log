@@ -194,3 +194,11 @@ INFO:     127.0.0.1:60188 - "POST /v1/audio/speech HTTP/1.1" 200 OK
 2026-02-05 16:17:02,483 - api.routes.tts - INFO - Generating speech with preset speaker: Ryan
 2026-02-05 16:17:02,492 - qwen_tts.core.models.configuration_qwen3_tts - INFO - code_predictor_config is None. Initializing code_predictor model with default values
 Setting `pad_token_id` to `eos_token_id`:2150 for open-end generation.
+INFO:     127.0.0.1:55438 - "POST /v1/audio/speech HTTP/1.1" 200 OK
+2026-02-05 16:17:22,567 - api.routes.tts - INFO - Generating speech with preset speaker: Serena
+2026-02-05 16:17:22,573 - qwen_tts.core.models.configuration_qwen3_tts - INFO - code_predictor_config is None. Initializing code_predictor model with default values
+Setting `pad_token_id` to `eos_token_id`:2150 for open-end generation.
+INFO:     127.0.0.1:39066 - "POST /v1/audio/speech HTTP/1.1" 200 OK
+2026-02-05 16:18:42,727 - api.routes.tts - INFO - Generating speech with preset speaker: Ryan
+2026-02-05 16:18:42,733 - qwen_tts.core.models.configuration_qwen3_tts - INFO - code_predictor_config is None. Initializing code_predictor model with default values
+Setting `pad_token_id` to `eos_token_id`:2150 for open-end generation.
