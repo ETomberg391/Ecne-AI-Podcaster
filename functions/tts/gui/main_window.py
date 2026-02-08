@@ -612,7 +612,7 @@ def dev_mode_process(all_segment_files, reviewable_indices, text_segments_for_de
         for review_list_idx, original_idx in enumerate(reviewable_indices):
             if original_idx < len(all_segment_files) and review_list_idx < len(text_segments_for_dev):
                 file_path = all_segment_files[original_idx]
-                text, voice, padding_ms = text_segments_for__dev[review_list_idx]
+                text, voice, padding_ms = text_segments_for_dev[review_list_idx]
                 widgets.add_reviewable_segment(gui, original_idx, file_path, text, voice, padding_ms=padding_ms)
             else:
                 print(f"Dev Mode: Warning - Index mismatch adding speech segment. Review Idx: {review_list_idx}, Original Idx: {original_idx}")

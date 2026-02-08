@@ -1,0 +1,22 @@
+# settings/voices/ryan.yaml
+# Qwen3 TTS - Ryan voice (English - Rhythmic, Dynamic Male)
+
+# Audio enhancement parameters optimized for Ryan's voice
+gain_factor: 1.0
+trim_end_ms: 50
+nr_level: 0
+compress_thresh: 0.3
+compress_ratio: 2
+norm_frame_len: 10
+norm_gauss_size: 3
+desser_freq: 5000
+
+# Processing toggles
+apply_ffmpeg_enhancement: true
+apply_deesser: false  # Male voice, less need for de-essing
+
+# Provider info
+provider: qwen3
+language: English
+gender: Male
+description: "Rhythmic, Dynamic Male"

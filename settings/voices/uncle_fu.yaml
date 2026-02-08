@@ -1,0 +1,19 @@
+# settings/voices/uncle_fu.yaml
+# Qwen3 TTS - Uncle_Fu voice (Chinese - Deep, Mellow, Mature Male)
+
+gain_factor: 1.0
+trim_end_ms: 40
+nr_level: 0
+compress_thresh: 0.25
+compress_ratio: 2
+norm_frame_len: 10
+norm_gauss_size: 3
+desser_freq: 5000
+
+apply_ffmpeg_enhancement: true
+apply_deesser: false
+
+provider: qwen3
+language: Chinese
+gender: Male
+description: "Deep, Mellow, Mature Male"

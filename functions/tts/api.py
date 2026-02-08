@@ -8,13 +8,64 @@ import shutil
 import shlex
 import subprocess # Added for subprocess.run
 import time # Added for retry delays
+from typing import Optional, Tuple
+
 from functions.tts.utils import load_voice_config
+from functions.tts.providers import get_provider, TTSProvider
 
 # Override print function to force immediate flushing for real-time output
 original_print = print
 def print(*args, **kwargs):
     kwargs.setdefault('flush', True)
     return original_print(*args, **kwargs)
+
+# Global provider instance (initialized lazily)
+_tts_provider: Optional[TTSProvider] = None
+
+
+def get_tts_provider(provider_name: str = "qwen3", api_host: str = "127.0.0.1",
+                     api_port: Optional[int] = None, **kwargs) -> TTSProvider:
+    """
+    Get or initialize the TTS provider singleton.
+    
+    Args:
+        provider_name: 'qwen3' or 'orpheus'
+        api_host: API hostname
+        api_port: API port (uses provider default if None)
+        **kwargs: Additional provider options
+        
+    Returns:
+        TTSProvider instance
+    """
+    global _tts_provider
+    
+    if _tts_provider is None or _tts_provider.name != provider_name.lower():
+        provider_name = provider_name.lower()
+        
+        # Set default ports if not specified
+        if api_port is None:
+            api_port = 8000 if provider_name == 'qwen3' else 5005
+        
+        # Pass model for Qwen3
+        if provider_name == 'qwen3' and 'model' in kwargs:
+            _tts_provider = get_provider(
+                provider_name,
+                api_host=api_host,
+                api_port=api_port,
+                model=kwargs.get('model', 'qwen3-tts-1.7b-customvoice')
+            )
+        else:
+            _tts_provider = get_provider(provider_name, api_host=api_host, api_port=api_port)
+        
+        print(f"-> Initialized TTS Provider: {provider_name} at {api_host}:{api_port}")
+    
+    return _tts_provider
+
+
+def reset_tts_provider():
+    """Reset the TTS provider singleton (useful for testing)."""
+    global _tts_provider
+    _tts_provider = None
 
 def make_tts_request_with_retry(api_url, payload, headers, max_retries=3, timeout=180):
     """
@@ -42,7 +93,8 @@ def make_tts_request_with_retry(api_url, payload, headers, max_retries=3, timeou
                 time.sleep(wait_time)
             
             print(f"-> Making TTS request to {api_url} (attempt {attempt + 1}/{max_retries + 1})")
-            response = requests.post(api_url, json=payload, headers=headers, timeout=timeout)
+            # Use form data (multipart/form-data) for Qwen3 API compatibility
+            response = requests.post(api_url, data=payload, headers=headers, timeout=timeout)
             response.raise_for_status()
             
             if response.content and len(response.content) > 44:  # Valid audio response
@@ -121,9 +173,9 @@ def generate_audio_segment(input_text, voice, speed, api_host, api_port, temp_di
         "speed": speed
     }
     
-    headers = {
-        "Content-Type": "application/json"
-    }
+    # No Content-Type header - let requests set it automatically
+    # When using data=payload, requests will use application/x-www-form-urlencoded
+    headers = {}
 
     print(f"\nGenerating segment for voice '{voice}' (Speed: {speed}): \"{input_text[:50]}...\"")
 
@@ -373,3 +425,232 @@ def generate_audio_segment(input_text, voice, speed, api_host, api_port, temp_di
              try: os.remove(final_temp_path)
              except OSError as e: print(f"  Warning: Could not remove final temp file on error {final_temp_path}: {e}")
         return None, None
+
+
+def generate_audio_segment_with_provider(
+    input_text: str,
+    voice: str,
+    speed: float,
+    temp_dir: str,
+    tts_provider: TTSProvider,
+    # Audio processing parameters
+    apply_deesser: Optional[bool] = None,
+    deesser_freq: Optional[int] = None,
+    gain_factor: Optional[float] = None,
+    trim_end_ms: Optional[int] = None,
+    pad_end_ms: int = 0,
+    apply_ffmpeg_enhancement: Optional[bool] = None,
+    nr_level: Optional[int] = None,
+    compress_thresh: Optional[float] = None,
+    compress_ratio: Optional[int] = None,
+    norm_frame_len: Optional[int] = None,
+    norm_gauss_size: Optional[int] = None,
+    max_retries: int = 3,
+    timeout: int = 180,
+    # Provider-specific options
+    instructions: Optional[str] = None,
+) -> Tuple[Optional[str], Optional[int]]:
+    """
+    Generates a single audio segment using the specified TTS provider.
+    
+    This is the provider-aware version of generate_audio_segment that works
+    with both Qwen3 and Orpheus TTS providers.
+    
+    Args:
+        input_text: Text to synthesize
+        voice: Voice ID to use
+        speed: Speech speed factor
+        temp_dir: Path to temporary directory
+        tts_provider: Initialized TTS provider instance
+        apply_deesser: Whether to apply de-essing
+        deesser_freq: De-esser frequency cutoff
+        gain_factor: Audio gain multiplier
+        trim_end_ms: Milliseconds to trim from end
+        pad_end_ms: Milliseconds of silence to add at end
+        apply_ffmpeg_enhancement: Whether to apply FFmpeg processing
+        nr_level: Noise reduction level
+        compress_thresh: Compression threshold
+        compress_ratio: Compression ratio
+        norm_frame_len: Normalization frame length
+        norm_gauss_size: Normalization Gaussian size
+        max_retries: Maximum retry attempts
+        timeout: Request timeout
+        instructions: Voice style/emotion instructions (Qwen3 only)
+        
+    Returns:
+        Tuple of (path_to_audio_file, samplerate) or (None, None)
+    """
+    print(f"\n{'='*60}")
+    print(f"TTS Provider: {tts_provider.name.upper()}")
+    print(f"Voice: {voice} | Speed: {speed}x")
+    print(f"{'='*60}")
+    
+    # Get voice configuration from provider
+    voice_config = tts_provider.get_voice_config(voice)
+    
+    # Determine final parameter values
+    final_gain_factor = gain_factor if gain_factor is not None else voice_config.get('gain_factor', 1.0)
+    final_trim_end_ms = trim_end_ms if trim_end_ms is not None else voice_config.get('trim_end_ms', 0)
+    final_nr_level = nr_level if nr_level is not None else voice_config.get('nr_level', 0)
+    final_compress_thresh = compress_thresh if compress_thresh is not None else voice_config.get('compress_thresh', 1.0)
+    final_compress_ratio = compress_ratio if compress_ratio is not None else voice_config.get('compress_ratio', 1)
+    final_norm_frame_len = norm_frame_len if norm_frame_len is not None else voice_config.get('norm_frame_len', 10)
+    final_norm_gauss_size = norm_gauss_size if norm_gauss_size is not None else voice_config.get('norm_gauss_size', 3)
+    final_deesser_freq = deesser_freq if deesser_freq is not None else voice_config.get('deesser_freq', 3000)
+    
+    final_apply_ffmpeg = apply_ffmpeg_enhancement if apply_ffmpeg_enhancement is not None else True
+    final_apply_deesser = apply_deesser if apply_deesser is not None else voice_config.get('apply_deesser', True)
+    
+    # Ensure norm_gauss_size is odd
+    if final_apply_ffmpeg and final_norm_gauss_size % 2 == 0:
+        final_norm_gauss_size -= 1
+    
+    # Generate audio using provider
+    provider_kwargs = {}
+    if instructions and tts_provider.name == 'qwen3':
+        provider_kwargs['instructions'] = instructions
+    
+    audio_data, samplerate = tts_provider.generate_audio(
+        text=input_text,
+        voice=voice,
+        speed=speed,
+        output_format="wav",
+        max_retries=max_retries,
+        timeout=timeout,
+        **provider_kwargs
+    )
+    
+    if audio_data is None:
+        print("!! TTS generation failed")
+        return None, None
+    
+    # Create temp file for final output
+    temp_fd, final_temp_path = tempfile.mkstemp(suffix=".wav", prefix="segment_", dir=temp_dir)
+    os.close(temp_fd)
+    
+    temp_fd, initial_temp_path = tempfile.mkstemp(suffix="_initial.wav", prefix="segment_", dir=temp_dir)
+    os.close(temp_fd)
+    
+    try:
+        # Save initial audio
+        with open(initial_temp_path, 'wb') as f:
+            f.write(audio_data)
+        print(f"-> Initial audio saved ({len(audio_data)} bytes)")
+        
+        processed_audio_path = initial_temp_path
+        ffmpeg_temp_path = None
+        
+        # Apply FFmpeg enhancements if requested
+        if final_apply_ffmpeg:
+            ffmpeg_fd, ffmpeg_temp_path = tempfile.mkstemp(suffix="_ffmpeg.wav", prefix="segment_", dir=temp_dir)
+            os.close(ffmpeg_fd)
+            
+            try:
+                filter_chain = []
+                
+                if final_apply_deesser:
+                    filter_chain.append(f"firequalizer=gain='if(gte(f,{final_deesser_freq}),-5,0)'")
+                
+                if final_nr_level > 0:
+                    filter_chain.append(f"afftdn=nr={final_nr_level}")
+                
+                comp_thresh_str = f"{final_compress_thresh:.3f}"
+                filter_chain.append(f"acompressor=threshold={comp_thresh_str}:ratio={final_compress_ratio}:attack=10:release=100")
+                filter_chain.append(f"dynaudnorm=f={final_norm_frame_len}:g={final_norm_gauss_size}")
+                
+                audio_filter = ','.join(filter_chain)
+                
+                ffmpeg_command = [
+                    'ffmpeg',
+                    '-i', initial_temp_path,
+                    '-af', audio_filter,
+                    '-y',
+                    ffmpeg_temp_path
+                ]
+                
+                print(f"  Applying FFmpeg enhancement...")
+                result = subprocess.run(ffmpeg_command, capture_output=True, text=True, check=False)
+                
+                if result.returncode == 0 and os.path.exists(ffmpeg_temp_path) and os.path.getsize(ffmpeg_temp_path) > 44:
+                    processed_audio_path = ffmpeg_temp_path
+                    print(f"  -> FFmpeg enhancement applied")
+                else:
+                    print(f"  !! FFmpeg failed, using original audio")
+                    if os.path.exists(ffmpeg_temp_path):
+                        os.remove(ffmpeg_temp_path)
+                    ffmpeg_temp_path = None
+                    
+            except Exception as e:
+                print(f"  !! FFmpeg error: {e}")
+                if ffmpeg_temp_path and os.path.exists(ffmpeg_temp_path):
+                    os.remove(ffmpeg_temp_path)
+                ffmpeg_temp_path = None
+        
+        # Apply pydub processing (gain, trim, pad)
+        try:
+            from pydub import AudioSegment
+            
+            print(f"  Processing with pydub...")
+            segment = AudioSegment.from_wav(processed_audio_path)
+            samplerate = segment.frame_rate
+            
+            if final_gain_factor != 1.0 and final_gain_factor > 0:
+                gain_db = 20 * np.log10(final_gain_factor)
+                segment = segment + gain_db
+                print(f"    -> Applied gain: {final_gain_factor:.2f}x")
+            
+            if final_trim_end_ms > 0 and len(segment) > final_trim_end_ms:
+                segment = segment[:-final_trim_end_ms]
+                print(f"    -> Trimmed {final_trim_end_ms}ms from end")
+            
+            if pad_end_ms > 0:
+                padding = AudioSegment.silent(duration=pad_end_ms, frame_rate=samplerate)
+                segment = segment + padding
+                print(f"    -> Added {pad_end_ms}ms silence")
+            
+            segment.export(final_temp_path, format="wav")
+            duration = len(segment) / 1000.0
+            print(f"  -> Final audio: {duration:.2f}s, {samplerate}Hz")
+            
+            # Cleanup
+            if initial_temp_path and os.path.exists(initial_temp_path):
+                os.remove(initial_temp_path)
+            if ffmpeg_temp_path and os.path.exists(ffmpeg_temp_path):
+                os.remove(ffmpeg_temp_path)
+            
+            return final_temp_path, samplerate
+            
+        except ImportError:
+            print("!! pydub not available, skipping audio processing")
+            shutil.copy2(processed_audio_path, final_temp_path)
+            return final_temp_path, samplerate
+            
+    except Exception as e:
+        print(f"!! Error in audio processing: {e}")
+        # Cleanup
+        for path in [final_temp_path, initial_temp_path]:
+            if path and os.path.exists(path):
+                try: os.remove(path)
+                except: pass
+        return None, None
+
+
+def check_tts_health(provider_name: str = "qwen3", api_host: str = "127.0.0.1",
+                     api_port: Optional[int] = None) -> bool:
+    """
+    Check if the TTS service is healthy.
+    
+    Args:
+        provider_name: 'qwen3' or 'orpheus'
+        api_host: API hostname
+        api_port: API port (uses provider default if None)
+        
+    Returns:
+        True if healthy, False otherwise
+    """
+    try:
+        provider = get_tts_provider(provider_name, api_host, api_port)
+        return provider.health_check()
+    except Exception as e:
+        print(f"!! Health check failed: {e}")
+        return False

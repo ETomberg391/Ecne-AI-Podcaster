@@ -9,4 +9,6 @@ functions/__pycache__/*
 */*/__pycache__/*
 */*/*/__pycache__/*
 temp_audio/*
-
+venv/*
+EcneAI-Qwen-3-TTS-api
+logs/qwen3_service.log

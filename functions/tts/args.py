@@ -1,7 +1,14 @@
 import argparse
 import os
 
-# Define Languages and Voices (copied from orpheus_tts.py for now, will be removed if centralized)
+# Import providers to get available voices
+from functions.tts.providers import Qwen3Provider, OrpheusProvider
+
+# Define Voices for both providers
+QWEN3_VOICES = [v.id for v in Qwen3Provider().get_available_voices()]
+ORPHEUS_VOICES = [v.id for v in OrpheusProvider().get_available_voices()]
+
+# Legacy mapping for backward compatibility
 LANGUAGES_VOICES = {
     'English': ['tara', 'leah', 'jess', 'leo', 'dan', 'mia', 'zac', 'zoe'],
     'French': ['pierre', 'amelie', 'marie'],
@@ -13,21 +20,43 @@ LANGUAGES_VOICES = {
     'Italian': ['pietro', 'giulia', 'carlo']
 }
 LANGUAGES = list(LANGUAGES_VOICES.keys())
-ALL_VOICES = [voice for lang_voices in LANGUAGES_VOICES.values() for voice in lang_voices]
+ALL_VOICES = QWEN3_VOICES + ORPHEUS_VOICES
+
+# Default voices based on character profiles
+DEFAULT_QWEN3_HOST_VOICE = 'Ryan'
+DEFAULT_QWEN3_GUEST_VOICE = 'Serena'
+DEFAULT_ORPHEUS_HOST_VOICE = 'leo'
+DEFAULT_ORPHEUS_GUEST_VOICE = 'tara'
+
 
 def parse_tts_arguments():
     """
     Parses command-line arguments specific to the TTS builder.
+    
+    Supports both Qwen3 TTS (default) and Orpheus TTS providers.
     """
     parser = argparse.ArgumentParser(
-        description="Generate speech from text or a script file using Orpheus TTS FastAPI endpoint.",
+        description="Generate speech from text or a script file using Qwen3 or Orpheus TTS.",
         epilog="Examples:\n"
-               "  Single sentence: python3 tts_builder.py --input \"Hello there.\" --voice leo --output single\n"
-               "  From script:   python3 tts_builder.py --script podcast.txt --host-voice leo --guest-voice tara --output podcast_audio.wav --silence 0.5\n"
-               "  Dev Mode:      python3 tts_builder.py --script podcast.txt --dev --output dev_test.wav --silence 0.5\n"
-               "  Expanded:      python3 tts_builder.py   --script podcast_script_small.txt   --host-voice leo   --guest-voice tara   --output simple_test_script   --dev   --guest-breakup   --video-resolution \"1920x1080\"   --video-fps 24   --video-intermediate-preset slow   --video-intermediate-crf 18   --video-final-audio-bitrate 320k",
+               "  Qwen3 (default): python3 tts_builder.py --script podcast.txt --host-voice Ryan --guest-voice Serena\n"
+               "  Orpheus:         python3 tts_builder.py --script podcast.txt --tts-provider orpheus --host-voice leo --guest-voice tara\n"
+               "  Dev Mode:        python3 tts_builder.py --script podcast.txt --dev --output dev_test.wav\n"
+               "  Voice Cloning:   python3 tts_builder.py --script podcast.txt --host-voice Ryan --guest-voice voice_abc123",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
+
+    # --- TTS Provider Selection (NEW) ---
+    provider_group = parser.add_argument_group('TTS Provider Selection')
+    provider_group.add_argument('--tts-provider', type=str, default='qwen3',
+                                choices=['qwen3', 'orpheus'],
+                                help='TTS provider to use (default: qwen3). Qwen3 offers higher quality and voice cloning.')
+    provider_group.add_argument('--qwen3-port', type=int, default=8000,
+                                help='Port for Qwen3 TTS API server (default: 8000)')
+    provider_group.add_argument('--qwen3-model', type=str, default='qwen3-tts-1.7b-customvoice',
+                                choices=['qwen3-tts-1.7b-base', 'qwen3-tts-1.7b-customvoice'],
+                                help='Qwen3 model to use (default: qwen3-tts-1.7b-customvoice)')
+    provider_group.add_argument('--orpheus-port', type=int, default=5005,
+                                help='Port for Orpheus TTS API server (default: 5005)')
 
     # --- Input Arguments (Mutually Exclusive) ---
     group = parser.add_mutually_exclusive_group(required=True)
@@ -36,22 +65,47 @@ def parse_tts_arguments():
     group.add_argument('--resume-from-json', type=str, help='Path to a podcast JSON file to resume editing.')
 
     # --- Script Specific Arguments ---
-    parser.add_argument('--host-voice', type=str, default='leo',
-                        help='Voice to use for lines starting with "Host:" (script mode only, default: leo).')
-    parser.add_argument('--guest-voice', type=str, default='tara',
-                        help='Voice to use for lines starting with "Guest:" (script mode only, default: tara).')
+    parser.add_argument('--host-voice', type=str, default=None,
+                        help='Voice to use for lines starting with "Host:" (script mode only). '
+                             'Default: Ryan (Qwen3) or leo (Orpheus)')
+    parser.add_argument('--guest-voice', type=str, default=None,
+                        help='Voice to use for lines starting with "Guest:" (script mode only). '
+                             'Default: Serena (Qwen3) or tara (Orpheus)')
     parser.add_argument('--silence', type=float, default=1.0,
                         help='Duration of silence in seconds between script lines (default: 1.0). Use 0 to disable.')
 
     # --- General Arguments ---
-    parser.add_argument('--voice', type=str, default='tara',
-                        help='Voice to use for single --input (default: tara).')
+    parser.add_argument('--voice', type=str, default=None,
+                        help='Voice to use for single --input. '
+                             'Default: Ryan (Qwen3) or tara (Orpheus).')
     parser.add_argument('--speed', type=float, default=1.0,
-                        help='Speech speed factor (0.5 to 1.5, default: 1.0).')
-    parser.add_argument('--port', type=int, default=5005,
-                        help='Port the Orpheus-FastAPI server is running on (default: 5005).')
+                        help='Speech speed factor (0.5 to 2.0 for Qwen3, 0.5 to 1.5 for Orpheus, default: 1.0).')
+    parser.add_argument('--port', type=int, default=None,
+                        help='[DEPRECATED] Use --qwen3-port or --orpheus-port instead. '
+                             'Port the TTS server is running on.')
     parser.add_argument('--api-host', type=str, default='127.0.0.1',
-                        help='Host the Orpheus-FastAPI server is running on (default: 127.0.0.1).')
+                        help='Host the TTS server is running on (default: 127.0.0.1).')
+    
+    # --- Qwen3-Specific Arguments ---
+    qwen3_group = parser.add_argument_group('Qwen3 TTS Options')
+    qwen3_group.add_argument('--qwen3-instruction', type=str, default=None,
+                             choices=['happy', 'excited', 'angry', 'sad', 'gentle',
+                                      'fearful', 'cold', 'whisper', 'surprised',
+                                      'disgusted', 'neutral'],
+                             help='Emotion/style instruction for Qwen3 TTS (optional)')
+    qwen3_group.add_argument('--qwen3-temperature', type=float, default=0.9,
+                             help='Sampling temperature for Qwen3 (0.1 to 2.0, default: 0.9)')
+    
+    # --- Voice Cloning Arguments ---
+    clone_group = parser.add_argument_group('Voice Cloning Options (Qwen3 only)')
+    clone_group.add_argument('--host-voice-sample', type=str, default=None,
+                             help='Path to audio file for host voice cloning (MP3/WAV)')
+    clone_group.add_argument('--host-voice-text', type=str, default=None,
+                             help='Transcript text spoken in host voice sample (optional, improves quality)')
+    clone_group.add_argument('--guest-voice-sample', type=str, default=None,
+                             help='Path to audio file for guest voice cloning (MP3/WAV)')
+    clone_group.add_argument('--guest-voice-text', type=str, default=None,
+                             help='Transcript text spoken in guest voice sample (optional, improves quality)')
     parser.add_argument('--output', type=str, default='output_speech.wav',
                         help='Output filename for the generated audio (default: output_speech.wav).')
     parser.add_argument('--dev', action='store_true',
@@ -84,7 +138,31 @@ def parse_tts_arguments():
     video_group.add_argument('--video-keep-temp', action='store_true',
                              help='Keep temporary video segment files after completion.')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+    
+    # --- Post-processing: Set defaults based on provider ---
+    provider = args.tts_provider.lower()
+    
+    # Determine port based on provider if not explicitly set
+    if args.port is not None:
+        # Legacy --port argument was used, map it appropriately
+        if provider == 'qwen3':
+            args.qwen3_port = args.port
+        else:
+            args.orpheus_port = args.port
+    
+    # Set default voices based on provider
+    if args.host_voice is None:
+        args.host_voice = DEFAULT_QWEN3_HOST_VOICE if provider == 'qwen3' else DEFAULT_ORPHEUS_HOST_VOICE
+    
+    if args.guest_voice is None:
+        args.guest_voice = DEFAULT_QWEN3_GUEST_VOICE if provider == 'qwen3' else DEFAULT_ORPHEUS_GUEST_VOICE
+    
+    if args.voice is None:
+        args.voice = DEFAULT_QWEN3_HOST_VOICE if provider == 'qwen3' else DEFAULT_ORPHEUS_GUEST_VOICE
+    
+    return args
+
 
 if __name__ == '__main__':
     args = parse_tts_arguments()

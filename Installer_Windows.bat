@@ -26,10 +26,57 @@ if '%errorlevel%' NEQ '0' (
 )
 
 :: If we reach here, we have admin privileges
-echo Running Orpheus TTS Windows Installer with Administrator privileges...
+echo Running Ecne AI Podcaster Windows Installer with Administrator privileges...
 echo Current directory: "%CD%"
 echo.
 
+:: ============================================
+:: TTS Provider Selection
+:: ============================================
+echo.
+echo ============================================
+echo    TTS Provider Selection
+echo ============================================
+echo.
+echo Choose your TTS (Text-to-Speech) provider:
+echo.
+echo   [1] Qwen3 TTS (RECOMMENDED)
+echo       - Native Python service (no Docker required)
+echo       - High-quality voice synthesis
+echo       - Voice cloning capabilities
+echo       - 9 preset speakers
+echo.
+echo   [2] Orpheus TTS (Legacy)
+echo       - Docker Desktop required
+echo       - More complex installation
+echo       - GPU acceleration via Docker
+echo.
+
+set /p TTS_CHOICE="Enter your choice [1-2]: "
+
+if "%TTS_CHOICE%"=="1" (
+    echo.
+    echo Selected: Qwen3 TTS
+    echo.
+    goto :qwen3_install
+) else if "%TTS_CHOICE%"=="2" (
+    echo.
+    echo Selected: Orpheus TTS
+    echo.
+    goto :orpheus_install
+) else (
+    echo.
+    echo Invalid choice. Defaulting to Qwen3 TTS (recommended).
+    echo.
+    goto :qwen3_install
+)
+
+:qwen3_install
+:: Run the Qwen3 installer
+call "%~dp0Installer_Qwen3_Windows.bat"
+exit /b %errorlevel%
+
+:orpheus_install
 :: Check if PowerShell script exists
 if not exist "settings\install\Installer.ps1" (
     echo ERROR: Installer.ps1 not found in settings\install\ directory.

@@ -14,7 +14,12 @@ def scrape_website_url(url):
         article = Article(url, request_headers=headers, fetch_images=False)
         article.download()
         # Handle potential download errors before parsing
-        if article.download_state != 2: # 2 means success
+        # Check download state - handle both integer (old) and enum (new) formats
+        download_state_value = article.download_state
+        if hasattr(download_state_value, 'value'):
+            # It's an enum, get the value
+            download_state_value = download_state_value.value
+        if download_state_value != 2: # 2 means success
              raise ArticleException(f"Download failed with state {article.download_state}")
         article.parse()
 

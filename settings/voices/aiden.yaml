@@ -1,0 +1,19 @@
+# settings/voices/aiden.yaml
+# Qwen3 TTS - Aiden voice (English - Sunny, Clear American Male)
+
+gain_factor: 1.0
+trim_end_ms: 50
+nr_level: 0
+compress_thresh: 0.3
+compress_ratio: 2
+norm_frame_len: 10
+norm_gauss_size: 3
+desser_freq: 5000
+
+apply_ffmpeg_enhancement: true
+apply_deesser: false
+
+provider: qwen3
+language: English
+gender: Male
+description: "Sunny, Clear American Male"
